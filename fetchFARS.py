@@ -9,7 +9,7 @@ import ftplib
 import os
 import sys
 
-os.chdir(sys.path[0] + '/Documents/GitHub/lpdt')
+os.chdir(sys.path[0] + '\\Documents\\GitHub\\lpdt')
 
 ftp = ftplib.FTP('ftp.nhtsa.dot.gov')
 ftp.login()
@@ -17,15 +17,15 @@ ftp.login()
 firstYear = 1983
 latestYear = 2017
 for yr in range(firstYear,latestYear+1):
-    filenameLocal = 'data/FSAS' + str(yr) + '.zip'
+    filenameLocal = 'data\\FSAS' + str(yr) + '.zip'
     if not os.path.exists(os.path.dirname(filenameLocal)):
         os.makedirs(os.path.dirname(filenameLocal))
     if yr <= 2011:
-        ftp.cwd('/fars/' + str(yr) + '/SAS') 
+        ftp.cwd('\\fars\\' + str(yr) + '\\SAS') 
     elif yr == 2012:
-        ftp.cwd('/fars/' + str(yr) + '/National/SAS')
+        ftp.cwd('\\fars\\' + str(yr) + '\\National\\SAS')
     else:
-        ftp.cwd('/fars/' + str(yr) + '/National')
+        ftp.cwd('\\fars\\' + str(yr) + '\\National')
     
     if yr <= 1998:        
         filenameFetch = 'FSAS' + str(yr-1900) + '.zip'
