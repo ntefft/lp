@@ -9,7 +9,11 @@ import ftplib
 import os
 import sys
 
-os.chdir(sys.path[0] + '\\Documents\\GitHub\\lpdt')
+# path for Spyder or Jupyter Notebooks
+if os.path.exists(sys.path[0] + '\\Documents\\GitHub\\lpdt'):
+    os.chdir(sys.path[0] + '\\Documents\\GitHub\\lpdt')
+else:
+    os.chdir(sys.path[0])
 
 ftp = ftplib.FTP('ftp.nhtsa.dot.gov')
 ftp.login()
