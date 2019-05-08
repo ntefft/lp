@@ -20,7 +20,10 @@ ftp.login()
 
 firstYear = 1983
 latestYear = 2017
+
+# first fetch the accident, person, and vehicle files
 for yr in range(firstYear,latestYear+1):
+    print("Fetching data for " + str(yr) + ".")
     filenameLocal = 'data\\FARS' + str(yr) + '.zip'
     if not os.path.exists(os.path.dirname(filenameLocal)):
         os.makedirs(os.path.dirname(filenameLocal))
@@ -48,3 +51,29 @@ for yr in range(firstYear,latestYear+1):
     fileLocal = open(filenameLocal, 'wb')
     ftp.retrbinary('RETR ' + filenameFetch, fileLocal.write)
     fileLocal.close()
+    
+    # next, fetch the multiple imputation files, when necessary
+    if yr <= 1993:
+        filenameLocal = 'data\\MISEQL' + str(yr) + '.zip'
+        if not os.path.exists(os.path.dirname(filenameLocal)):
+            os.makedirs(os.path.dirname(filenameLocal))
+            
+        ftp.cwd('\\fars\\' + str(yr) + '\\Seql')
+        filenameFetch = 'MISEQL' + str(yr-1900) + '.zip'
+        
+        fileLocal = open(filenameLocal, 'wb')
+        ftp.retrbinary('RETR ' + filenameFetch, fileLocal.write)
+        fileLocal.close()    
+    
+    elif yr >= 2009 and yr <= 2011:        
+        filenameLocal = 'data\\MIDBF' + str(yr) + '.zip'
+        if not os.path.exists(os.path.dirname(filenameLocal)):
+            os.makedirs(os.path.dirname(filenameLocal))
+        
+        ftp.cwd('\\fars\\' + str(yr) + '\\DBF')
+        filenameFetch = 'MI' + str(yr) + 'DBF.zip'
+                
+        fileLocal = open(filenameLocal, 'wb')
+        ftp.retrbinary('RETR ' + filenameFetch, fileLocal.write)
+        fileLocal.close()
+    
