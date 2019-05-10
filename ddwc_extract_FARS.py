@@ -67,7 +67,9 @@ for yr in range(firstYear,latestYear+1):
     shutil.rmtree(path='data\\extracted')
 
     # PREPARE THE ANNUAL ACCIDENT VARIABLES   
+    df_acc_yr['st_case'] = df_acc_yr['st_case'].astype('int')
     df_acc_yr.set_index([numpy.full(len(df_acc_yr.index), yr),'st_case'],inplace=True) # set the multiindex as year and st_case
+    df_acc_yr.index.set_names(['year','st_case'], inplace=True)
         
     df_acc_yr.loc[df_acc_yr.hour==99, 'hour'] = numpy.nan
     df_acc_yr.loc[df_acc_yr.hour==24, 'hour'] = 0
@@ -81,7 +83,9 @@ for yr in range(firstYear,latestYear+1):
     df_accident = df_accident.append(df_acc_yr)
 
     # PREPARE THE ANNUAL VEHICLE VARIABLES
+    df_veh_yr[['st_case','veh_no']] = df_veh_yr[['st_case','veh_no']].astype('int')
     df_veh_yr.set_index([numpy.full(len(df_veh_yr.index), yr),'st_case','veh_no'],inplace=True) # set the multiindex as year and st_case 
+    df_veh_yr.index.set_names(['year','st_case','veh_no'], inplace=True)
 	
     if yr <= 2008: # number of occupants
         df_veh_yr['occupants'] = df_veh_yr['ocupants']
@@ -101,10 +105,12 @@ for yr in range(firstYear,latestYear+1):
 
     df_veh_yr = df_veh_yr[['prev_acc','prev_sus','prev_dwi','prev_spd','prev_oth','mod_year','dr_drink','occupants']]
     df_vehicle = df_vehicle.append(df_veh_yr)
-    
+
     # PREPARE THE ANNUAL PERSON VARIABLES
+    df_per_yr[['st_case','veh_no','per_no']] = df_per_yr[['st_case','veh_no','per_no']].astype('int')
     df_per_yr.set_index([numpy.full(len(df_per_yr.index), yr),'st_case','veh_no','per_no'],inplace=True) # set the multiindex as year and year, st_case, veh_no, per_no 
-               
+    df_per_yr.index.set_names(['year','st_case','veh_no','per_no'], inplace=True)           
+    
     if yr <= 1990: # alcohol test results
         df_per_yr['alcohol_test_result'] = df_per_yr['test_res']
     else:
@@ -124,14 +130,18 @@ for yr in range(firstYear,latestYear+1):
     df_per_yr.loc[df_per_yr.race==99, 'race'] = numpy.nan # race
     df_per_yr.loc[df_per_yr.seat_pos>=98, 'seat_pos'] = numpy.nan # seat position
     
+    df_mi_yr[['st_case','veh_no','per_no']] = df_mi_yr[['st_case','veh_no','per_no']].astype('int')
+    if 'year' in df_mi_yr.columns: # going to rest the index
+       df_mi_yr.drop(columns='year',inplace=True) 
     df_mi_yr.set_index([numpy.full(len(df_mi_yr.index), yr),'st_case','veh_no','per_no'],inplace=True) # set the multiindex as year and year, st_case, veh_no, per_no 
-    df_per_yr = df_per_yr.merge(df_mi_yr,how='left',left_index=True,right_index=True) # merge in multiply imputed bac values
+    df_mi_yr.index.set_names(['year','st_case','veh_no','per_no'], inplace=True)
+    df_per_yr = df_per_yr.merge(df_mi_yr,how='left',on=['year','st_case','veh_no','per_no']) # merge in multiply imputed bac values
 
-    df_per_yr = df_per_yr.rename(index=str, columns={'p1':'mibac1','p2':'mibac2','p3':'mibac3','p4':'mibac4','p5':'mibac5','p6':'mibac6','p7':'mibac7','p8':'mibac8','p9':'mibac9','p10':'mibac10'}) # rename bac columns    
+    df_per_yr = df_per_yr.rename(columns={'p1':'mibac1','p2':'mibac2','p3':'mibac3','p4':'mibac4','p5':'mibac5','p6':'mibac6','p7':'mibac7','p8':'mibac8','p9':'mibac9','p10':'mibac10'}) # rename bac columns    
     df_per_yr = df_per_yr[['seat_pos','drinking','alc_det','atst_typ','alcohol_test_result','race','rest_use','age','age_lt15','sex','mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']]
     df_person = df_person.append(df_per_yr)
     
-    for ft in ['acc','veh','per','mi']: # clean up memory
+    for ft in ['acc','veh','per','mi']: # clean up memory 
         del vars()['df_' + ft + '_yr']
 
 df_accident_desc = df_accident.describe()
