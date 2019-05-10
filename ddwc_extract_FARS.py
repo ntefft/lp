@@ -60,7 +60,7 @@ for yr in range(firstYear,latestYear+1):
     elif 2012 <= yr <= 2014:
         df_mi_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\Miper.dbf',char_decode_errors='replace'))
     else:
-        df_mi_yr = pandas.read_csv('data\\extracted\\Miper.csv')
+        df_mi_yr = pandas.read_csv('data\\extracted\\Miper.csv')    
     
     for ft in ['acc','veh','per','mi']:
         vars()['df_' + ft + '_yr'].columns = vars()['df_' + ft + '_yr'].columns.str.lower() # convert all columns to lower case    
@@ -125,8 +125,9 @@ for yr in range(firstYear,latestYear+1):
     
     df_mi_yr.set_index([numpy.full(len(df_mi_yr.index), yr),'st_case','veh_no','per_no'],inplace=True) # set the multiindex as year and year, st_case, veh_no, per_no 
     df_per_yr = df_per_yr.merge(df_mi_yr,how='left',left_index=True,right_index=True) # merge in multiply imputed bac values
-    
-    df_per_yr = df_per_yr[['drinking','alc_det','atst_typ','alcohol_test_result','race','rest_use','age','age_lt15','sex','p1','p2','p3','p4','p5','p6','p7','p8','p9','p10']]
+
+    df_per_yr = df_per_yr.rename(index=str, columns={'p1':'mibac1','p2':'mibac2','p3':'mibac3','p4':'mibac4','p5':'mibac5','p6':'mibac6','p7':'mibac7','p8':'mibac8','p9':'mibac9','p10':'mibac10'}) # rename bac columns    
+    df_per_yr = df_per_yr[['drinking','alc_det','atst_typ','alcohol_test_result','race','rest_use','age','age_lt15','sex','mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']]
     df_person = df_person.append(df_per_yr)
     
     for ft in ['acc','veh','per','mi']: # clean up memory
