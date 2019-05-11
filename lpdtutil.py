@@ -5,9 +5,10 @@ Created on Fri May 10 11:41:35 2019
 @author: ntefft
 """
 
-import numpy, pandas
+import pandas
 
 # function that identifies a vehicle's driver as drunk, depending on Levitt & Porter definition of interest
+# returns either a series (single status) or a dataframe (10 imputed values for mi)
 def driver_drinking_status(df_vehicle, df_person, definition = 'mi', bac_threshold = 0.08):
     df_veh_driver = df_vehicle.merge(df_person.loc[df_person['seat_pos']==11],how='left',on=['year','st_case','veh_no'],validate='1:m') # keep only drivers from the person file and merge them in
     df_veh_driver = df_veh_driver.loc[~df_veh_driver.index.duplicated()] # drop the first of duplicate drivers (when there were two persons in the driver seat)
@@ -27,32 +28,25 @@ def driver_drinking_status(df_vehicle, df_person, definition = 'mi', bac_thresho
         df_driver_drink_status = df_driver_drink_status.astype('int')
         df_driver_drink_status = df_driver_drink_status.rename(columns={'mibac1':'drink_status1','mibac2':'drink_status2','mibac3':'drink_status3','mibac4':'drink_status4','mibac5':'drink_status5','mibac6':'drink_status6','mibac7':'drink_status7','mibac8':'drink_status8','mibac9':'drink_status9','mibac10':'drink_status10',}) # rename columns 
     elif definition == 'police_report_only':
-        df_driver_drink_status = df_veh_driver[['drinking']]
-        df_driver_drink_status = df_driver_drink_status.rename(columns={'drinking':'drink_status'}) # rename columns   
+        df_driver_drink_status = df_veh_driver['drinking']
     elif definition == 'any_evidence':
-        df_driver_drink_status = df_veh_driver[['dr_drink']]
-        df_driver_drink_status = df_driver_drink_status.rename(columns={'dr_drink':'drink_status'}) # rename columns   
+        df_driver_drink_status = df_veh_driver['dr_drink']
     elif definition == 'police_report_primary':
-        df_driver_drink_status = df_veh_driver[['drinking','alcohol_test_result']]
-        df_driver_drink_status['drink_status'] = df_driver_drink_status['drinking']
-        df_driver_drink_status.loc[df_driver_drink_status['alcohol_test_result']==0 & (df_driver_drink_status['drinking'].isin([8,9]) | df_driver_drink_status['drinking'].isna()), 'drink_status'] = 0
-        df_driver_drink_status.loc[df_driver_drink_status['alcohol_test_result']>0 & (df_driver_drink_status['drinking'].isin([8,9]) | df_driver_drink_status['drinking'].isna()), 'drink_status'] = 1         
-        df_driver_drink_status = df_driver_drink_status[['drink_status']]
+        df_driver_drink_status = df_veh_driver['drinking']
+        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']==0) & (df_veh_driver['drinking'].isin([8,9]) | df_veh_driver['drinking'].isna())] = 0
+        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']>0) & (df_veh_driver['drinking'].isin([8,9]) | df_veh_driver['drinking'].isna())] = 1         
     elif definition == 'bac_test_primary':
-        df_driver_drink_status = df_veh_driver[['drinking','alcohol_test_result']]
-        df_driver_drink_status['drink_status'] = df_driver_drink_status['drinking']
-        df_driver_drink_status.loc[df_driver_drink_status['alcohol_test_result']==0, 'drink_status'] = 0
-        df_driver_drink_status.loc[df_driver_drink_status['alcohol_test_result']>bac_threshold_scaled, 'drink_status'] = 1
-        df_driver_drink_status = df_driver_drink_status[['drink_status']]
+        df_driver_drink_status = df_veh_driver['drinking']
+        df_driver_drink_status.loc[df_veh_driver['alcohol_test_result']==0] = 0
+        df_driver_drink_status.loc[df_veh_driver['alcohol_test_result']>bac_threshold_scaled] = 1
     elif definition == 'impaired_vs_sober':
-        df_driver_drink_status = df_veh_driver[['dr_drink','alcohol_test_result']]
-        df_driver_drink_status['drink_status'] = numpy.nan
-        df_driver_drink_status.loc[(df_driver_drink_status['alcohol_test_result']==0) | (df_driver_drink_status['dr_drink']==0), 'drink_status'] = 0
-        df_driver_drink_status.loc[(df_driver_drink_status['alcohol_test_result']>=bac_threshold_scaled) & (df_driver_drink_status['dr_drink']!=0), 'drink_status'] = 1
-        df_driver_drink_status = df_driver_drink_status[['drink_status']]
+        df_driver_drink_status = pandas.Series(index=df_veh_driver.index)
+        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']==0) | (df_veh_driver['dr_drink']==0)] = 0
+        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']>=bac_threshold_scaled) & (df_veh_driver['dr_drink']!=0)] = 1
     
     return df_driver_drink_status
-
-#test = driver_drinking_status(df_vehicle, df_person, definition = 'impaired_vs_sober')
+#
+#test = driver_drinking_status(df_vehicle, df_person, definition = 'any_evidence')
 #test.describe()
-#test['drink_status'].value_counts()
+#test.value_counts()
+#test.isna().sum()
