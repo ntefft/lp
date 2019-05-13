@@ -124,7 +124,10 @@ for yr in range(firstYear,latestYear+1):
             df_per_yr[vn] = numpy.nan
     df_per_yr.loc[df_per_yr.rest_use>=98, 'rest_use'] = numpy.nan # restraint use
     
-    df_per_yr.loc[df_per_yr.age>=998, 'age'] = numpy.nan # age
+    if yr <= 2008:
+        df_per_yr.loc[df_per_yr.age==99, 'age'] = numpy.nan # age
+    else:
+        df_per_yr.loc[df_per_yr.age>=998, 'age'] = numpy.nan # age
     df_per_yr['age_lt15'] = df_per_yr['age'] < 15 # less than 15 defined as child for our purposes
     df_per_yr.loc[df_per_yr.sex.isin([8,9]), 'sex'] = numpy.nan # sex
     df_per_yr.loc[df_per_yr.race==99, 'race'] = numpy.nan # race
