@@ -17,8 +17,8 @@ df_states = pandas.DataFrame.from_dict(us.states.mapping('fips', 'abbr'),orient=
 df_states = df_states[df_states.index.notnull()]
 df_states.index = df_states.index.astype(int)
 
-#firstYear = 1983
-firstYear = 2016
+firstYear = 1983
+#firstYear = 2016
 latestYear = 2017
 
 df_accident = pandas.DataFrame() # initialize analytic dataframe
