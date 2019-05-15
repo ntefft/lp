@@ -89,7 +89,7 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition 
     return df_return_miss
 
 # function that calculates the proportion of state-year observations that have missing data (for exclusion from L&P estimation)
-def state_year_prop_miss(miss_any):
+def state_year_prop_miss(df_accident,miss_any):
     df_acc_miss_any = df_accident.merge(miss_any,how='inner',on=['year','st_case'])
     return df_acc_miss_any[['state','miss_any']].groupby(['year','state']).mean()
     
@@ -129,7 +129,7 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]),
                                              drinking_definition)
     df_acc_miss_flag['miss_any'].value_counts()
-    df_st_yr_prop_miss = state_year_prop_miss(df_acc_miss_flag['miss_any'])
+    df_st_yr_prop_miss = state_year_prop_miss(df_accident,df_acc_miss_flag['miss_any'])
     
     # only keep accidents in state-years that have a proportion of missing data that is above the given threshold
     df_accident_est = df_accident_est.reset_index().set_index(['year','state']) # reset index in order to select by state and year
