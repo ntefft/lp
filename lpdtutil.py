@@ -5,7 +5,7 @@ Created on Fri May 10 11:41:35 2019
 @author: ntefft
 """
 
-import pandas
+import numpy,pandas
 
 # Function that returns a dataframe of drivers, from the person file. The default is to drop crashes with multiple drivers in at least one of the driver's seats
 def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
@@ -100,16 +100,8 @@ def state_year_prop_miss(miss_any):
 #
 #test = state_year_prop_miss(df_acc_miss_flag['miss_any'])
 
-
-first_year = 2016
-last_year = 2017
-earliest_hour=20
-latest_hour=4
-drinking_definition = 'any_evidence'
-state_year_prop_threshold = 0.13
-equal_mixing=['year','state','weekend','hour']
 def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
-                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='mi', 
+                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
                                bac_threshold = 0.08, state_year_prop_threshold = 0.13):
     
     df_accident_est = df_accident.loc[range(first_year,last_year+1)] # restrict sample to selected years
@@ -157,16 +149,67 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     print(df_accident_est['weekend'].value_counts())
     
     # get dataframe of drinking status, then group by accident to sum drunk counts
+#    df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)], 
+#                                             get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]), 
+#                                             drinking_definition).groupby(['year','st_case']).sum()
+#    
     df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)], 
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]), 
-                                             drinking_definition).groupby(['year','st_case']).sum()
+                                             drinking_definition)
+    
     
     # merge in drinking status and collapse accidents by number of drinkers and number of vehicles per accident
-    df_accident_est = df_accident_est.merge(df_acc_drink_count,how='left',on=['year','st_case'])
-    df_accident_est = df_accident_est.reset_index().set_index(equal_mixing)[['acc_veh_count','drink_status']] # reset index to equal mixing variables and keep vehicle count and drunk driving variables
+    df_accident_est = df_accident_est.merge(df_acc_drink_count.reset_index().set_index(['year','st_case']),how='left',on=['year','st_case'])
+    #    ultimately, label each driver as 1 of 4 types:
+    #	1 = not drinking, no kids
+    #	2 = drinking, no kids
+    #	3 = not drinking, kids
+    #	4 = drinking, kids
+    df_accident_est['driver_type'] = numpy.nan
+    df_accident_est.loc[df_accident_est['drink_status']==0,'driver_type'] = 1 # driver type 1 if non-drinker
+    df_accident_est.loc[df_accident_est['drink_status']==1,'driver_type'] = 2 # driver type 2 if drinker
+    # reset index for unstacking by veh_no, and keep vehicle count and drink_status
+    df_accident_est['veh_no2'] = df_accident_est.groupby(['year','st_case']).cumcount()+1
+    df_accident_est = df_accident_est.reset_index().set_index(equal_mixing + ['st_case','veh_no2'])[['acc_veh_count','driver_type']]
+    df_accident_est = df_accident_est.unstack()
     
-    # create interactions of categories of acc_veh_count and drink_status
-    for col in ['acc_veh_count', 'drink_status']:
-        df_accident_est[col] = df_accident_est[col].astype('category')
+    # should revisit this code because we might be able to use multi-level columns instead of these column names
+    num_driver_types = 2
+    # one-car crashes, looping over driver types
+    for dt in range(1,num_driver_types+1): 
+        df_accident_est['a_' + str(dt)] = 0
+        df_accident_est.loc[(df_accident_est['acc_veh_count'][1] == 1) & (df_accident_est['driver_type'][1] == dt),'a_' + str(dt)] = 1
+
+    # two-car crashes, looping over driver types
+    for dt1 in range(1,num_driver_types+1): 
+        for dt2 in range(1,num_driver_types+1): 
+#            if dt2 >= dt1: # in order to eliminate duplicates in terms of combinations
+            df_accident_est['a_' + str(dt1) + '_' + str(dt2)] = 0
+            df_accident_est.loc[(df_accident_est['acc_veh_count'][1] == 2) & (df_accident_est['driver_type'][1] == dt1) & (df_accident_est['driver_type'][2] == dt2),'a_' + str(dt1) + '_' + str(dt2)] = 1
+            if dt1 > dt2: # combine duplicates and drop duplicated columns
+                df_accident_est['a_' + str(dt2) + '_' + str(dt1)] = df_accident_est['a_' + str(dt2) + '_' + str(dt1)] + df_accident_est['a_' + str(dt1) + '_' + str(dt2)]
+                df_accident_est = df_accident_est.drop(columns=['a_' + str(dt1) + '_' + str(dt2)])
     
-    test = pandas.get_dummies(df_accident_est)
+    # clean up dataset and collapse by equal mixing
+    df_accident_est = df_accident_est.drop(columns=['acc_veh_count','driver_type'])
+    df_accident_est.columns = df_accident_est.columns.droplevel(level='veh_no2')
+    df_accident_est = df_accident_est.groupby(equal_mixing).sum()
+    print('Rows of estimation sample after collapsing by equal mixing: ')
+    print(len(df_accident_est.index))
+    
+    # toss observations where there are no (one-vehicle, drunk) or no (one-vehicle, sober) crashes [won't converge otherwise]
+    df_accident_est['a_miss'] = 0
+    for dt in range(1,num_driver_types+1): 
+        df_accident_est.loc[df_accident_est['a_' + str(dt)] == 0,'a_miss'] = 1
+    df_accident_est = df_accident_est[df_accident_est['a_miss'] == 0]
+    df_accident_est = df_accident_est.drop(columns=['a_miss'])
+    print('Rows of estimation sample after tossing out rows with zero single-car observations of either type: ')
+    print(len(df_accident_est.index))
+    
+    print('Final estimation sample: ')
+    df_accident_est.describe()
+    
+    return df_accident_est
+
+# code for testing
+#test = get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2016, last_year=2017)
