@@ -97,6 +97,8 @@ class Lpdt(GenericLikelihoodModel):
     def fit(self, start_params=None, maxiter=10000, maxfun=5000, **kwds):
         # we have one additional parameter and we need to add it for summary
 #        self.exog_names.append('lambda')
+        for xn in ['const','x1', 'x2', 'x3']:
+            self.exog_names.remove(xn)
         if start_params == None:
             # Reasonable starting values (equal risk and counts for each relative driver type)
             start_params = numpy.ones(2*self.num_driver_types)
@@ -106,3 +108,6 @@ class Lpdt(GenericLikelihoodModel):
         
 mod = Lpdt(A, num_driver_types=2, extra_params_names=['theta','lambda'])
 res = mod.fit()
+print(mod.exog_names)
+print(mod.endog_names)
+print(res.summary())
