@@ -176,20 +176,20 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     # should revisit this code because we might be able to use multi-level columns instead of these column names
     num_driver_types = 2
     # one-car crashes, looping over driver types
-    df_accident_est['a_1veh_total'] = 0 # keep a running total, for the maximum likelihood function
+#    df_accident_est['a_1veh_total'] = 0 # keep a running total, for the maximum likelihood function
     for dt in range(1,num_driver_types+1): 
         df_accident_est['a_' + str(dt)] = 0
         df_accident_est.loc[(df_accident_est['acc_veh_count'][1] == 1) & (df_accident_est['driver_type'][1] == dt),'a_' + str(dt)] = 1
-        df_accident_est['a_1veh_total'] = df_accident_est['a_1veh_total'] + df_accident_est['a_' + str(dt)]
+#        df_accident_est['a_1veh_total'] = df_accident_est['a_1veh_total'] + df_accident_est['a_' + str(dt)]
 
     # two-car crashes, looping over driver types
-    df_accident_est['a_2veh_total'] = 0 # keep a running total, for the maximum likelihood function
+#    df_accident_est['a_2veh_total'] = 0 # keep a running total, for the maximum likelihood function
     for dt1 in range(1,num_driver_types+1): 
         for dt2 in range(1,num_driver_types+1): 
 #            if dt2 >= dt1: # in order to eliminate duplicates in terms of combinations
             df_accident_est['a_' + str(dt1) + '_' + str(dt2)] = 0
             df_accident_est.loc[(df_accident_est['acc_veh_count'][1] == 2) & (df_accident_est['driver_type'][1] == dt1) & (df_accident_est['driver_type'][2] == dt2),'a_' + str(dt1) + '_' + str(dt2)] = 1
-            df_accident_est['a_2veh_total'] = df_accident_est['a_2veh_total'] + df_accident_est['a_' + str(dt1) + '_' + str(dt2)]
+#            df_accident_est['a_2veh_total'] = df_accident_est['a_2veh_total'] + df_accident_est['a_' + str(dt1) + '_' + str(dt2)]
             if dt1 > dt2: # combine duplicates and drop duplicated columns
                 df_accident_est['a_' + str(dt2) + '_' + str(dt1)] = df_accident_est['a_' + str(dt2) + '_' + str(dt1)] + df_accident_est['a_' + str(dt1) + '_' + str(dt2)]
                 df_accident_est = df_accident_est.drop(columns=['a_' + str(dt1) + '_' + str(dt2)])
@@ -222,5 +222,5 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
 def lnfactorial(n):
     lnf = 0
     for i in range(1,n+1):
-        lnf += log(i)
+        lnf += numpy.log(i)
     return lnf
