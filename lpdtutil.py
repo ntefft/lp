@@ -220,7 +220,8 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
 #test = get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2016, last_year=2017)
     
 def lnfactorial(n):
+    n_calc = int(n)
     lnf = 0
-    for i in range(1,n+1):
+    for i in range(1,n_calc+1):
         lnf += numpy.log(i)
     return lnf
