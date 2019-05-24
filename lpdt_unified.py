@@ -26,7 +26,7 @@ df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the
 
 # get estimation sample
 #A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=2017, equal_mixing=['year','weekend','hour'])
-A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=2017, equal_mixing=['year'])
+A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2007, last_year=2017, equal_mixing=['year','weekend','hour','state'])
 
 # code drawn from http://www.statsmodels.org/dev/examples/notebooks/generated/generic_mle.html
 # also https://austinrochford.com/posts/2015-03-03-mle-python-statsmodels.html
@@ -36,75 +36,90 @@ A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, firs
 # N[i] is the proportion of crashes of type i, relative to type 1
 # thet[i] is the two-car crash relative risk of type i, relative to type 1
 # lamb[i] is the one-car crash relative risk of type i, relative to type 1
-def _ll_lpdt(A, num_driver_types, thet, lamb):
-    # I think we just add across rows of A (all the equal mixing rows), but need to check this again
-    
-    # first substitute in for N values: incorporate information from single car crashes using the fact that larger observed quantities of one type suggest more drivers on the road of that type
-    N = numpy.ones((numpy.size(A,axis=0),num_driver_types))
-    for dt in range(1,num_driver_types): # N relative to type 1 is 1
-#        N[dt] = (1/lamb[dt])*(A['a_' + str(dt+1)]/A['a_1'])
-        N[:,dt] = (1/lamb[dt])*(A[:,dt]/A[:,0])
 
-    # build the probability values for accidents of each type: first build the probability denominator
-    p_denom = numpy.zeros((numpy.size(A,axis=0)))
-    for dto in range(0,num_driver_types):
-        for dti in range(0,num_driver_types):
-            p_denom += N[:,dto]*N[:,dti]*(thet[dto]+thet[dti])
-    
-    # next build the set of probabilities and add accidents
-    p = numpy.zeros((numpy.size(A,axis=0),num_driver_types,num_driver_types))
+def _ll_lpdt(A, num_driver_types, thet, lamb):
+    num_agg_rows = numpy.size(A,axis=0)
+#    print("A: " + str(A))
+    # in order to simplify issues with indexing, first convert the accident dataframe to separate matrices, one for single-car and one for two-car
+    A_1 = A[:,:num_driver_types] # one car crashes
+    A_2 = numpy.zeros((num_agg_rows,num_driver_types,num_driver_types)) # two car crashes
+    curr_col = 0
     for dto in range(0,num_driver_types):
         for dti in range(0,num_driver_types):
             if dti >= dto:
-                p[:,dto,dti] = N[:,dto]*N[:,dti]*(thet[dto]+thet[dti])/p_denom
+                A_2[:,dto,dti] = A[:,curr_col]
+                curr_col += 1
+#    print("A_2: " + str(A_2))        
+    thet_1 = numpy.concatenate((numpy.ones(num_driver_types-1),thet)) # add 1 to represent driver type 1 relative to themselves
+    lamb_1 = numpy.concatenate((numpy.ones(num_driver_types-1),lamb)) # add 1 to represent driver type 1 relative to themselves
+#    print("lamb_1: " + str(lamb_1))
+#    print("thet_1: " + str(thet_1))
+    # first substitute in for N values: incorporate information from single car crashes using the fact that larger observed quantities of one type suggest more drivers on the road of that type
+    N = numpy.ones((num_agg_rows,num_driver_types))
+    
+    for dt in range(0,num_driver_types): # count of type dt driving on the road relative to type 1
+        N[:,dt] = (1/lamb_1[dt])*(A_1[:,dt]/A_1[:,0])
+#    print("N: " + str(N))
+    # build the probability values for accidents of each type: first build the probability denominator
+    p_denom = numpy.zeros((num_agg_rows))
+    for dto in range(0,num_driver_types):
+        for dti in range(0,num_driver_types):
+            p_denom += N[:,dto]*N[:,dti]*(thet_1[dto]+thet_1[dti])
+    
+    # next build the set of probabilities and add accidents
+    p = numpy.zeros((num_agg_rows,num_driver_types,num_driver_types))
+    for dto in range(0,num_driver_types):
+        for dti in range(0,num_driver_types):
+            if dti >= dto:
+                p[:,dto,dti] = N[:,dto]*N[:,dti]*(thet_1[dto]+thet_1[dti])/p_denom
                 if dti != dto:
                     p[:,dto,dti] = 2*p[:,dto,dti] # after eliminating the duplicates, need to add in the probability of observing the two types reversed
-    
+#    print("p: " + str(p))
+                    
     # construct the likelihood function
-    ll = numpy.zeros((numpy.size(A,axis=0)))
-    current_col = num_driver_types # column numbers to draw from begin after the one-car crashes
+    ll = numpy.zeros((num_agg_rows))
     two_veh_total = 0
     for dto in range(0,num_driver_types):
        for dti in range(0,num_driver_types):
            if dti >= dto:
-               ll += A[:,current_col]*numpy.log(p[:,dto,dti]) 
-               two_veh_total += A[:,current_col]
-               current_col += 1
+#               ll += A_2[:,dti]*numpy.log(p[:,dto,dti]) 
+#               two_veh_total += A_2[:,dti]
+               ll += A_2[:,dto,dti]*numpy.log(p[:,dto,dti]) 
+               two_veh_total += A_2[:,dto,dti] # build the two-vehicle total while we're at it
+#    print("ll 1: " + str(ll))
     
     # add natural log of the factorial of total 2-car crashes (have to do for each row separately)
-    # add the same time, total up log likelihood
-    ll_total = 0
-    for i in range(0,numpy.size(A,axis=0)):
-        ll_total += ll[i]    
-        ll_total += lpdtutil.lnfactorial(two_veh_total[i])
-
-    return ll_total
+    for i in range(0,num_agg_rows):
+        ll[i] += lpdtutil.lnfactorial(two_veh_total[i])
+        for dto in range(0,num_driver_types):
+            for dti in range(0,num_driver_types):
+                if dti >= dto:
+                    ll[i] -= lpdtutil.lnfactorial(A_2[i,dto,dti])
+        
+#    print("ll 2: " + str(ll))
+    return ll
 
 # create a new model class which inherits from GenericLikelihoodModel
 class Lpdt(GenericLikelihoodModel):
     # endog is A (accident counts), and exog is num_driver_types
     def __init__(self, endog, exog=None, num_driver_types=2, **kwds):
         if exog is None:
-            exog = numpy.zeros((numpy.size(endog,axis=0),2*num_driver_types)) # we don't have exogenous variables in our model
+            exog = numpy.zeros((numpy.size(endog,axis=0),2*(num_driver_types-1))) # we don't have exogenous variables in our model
         super(Lpdt, self).__init__(endog, exog, num_driver_types=2, **kwds)
         
     def nloglikeobs(self, params):
-        thet = params[:self.num_driver_types]
-        lamb = params[self.num_driver_types:]
-        ll = _ll_lpdt(self.endog, self.num_driver_types, thet, lamb)
-        return -ll 
+        thet = params[:(self.num_driver_types-1)]
+        lamb = params[(self.num_driver_types-1):]
+        return -_ll_lpdt(self.endog, self.num_driver_types, thet, lamb)
     
     def fit(self, start_params=None, maxiter=10000, maxfun=5000, **kwds):
-        # we have one additional parameter and we need to add it for summary
-#        self.exog_names.append('lambda')
-        for xn in ['const','x1', 'x2', 'x3']:
+        for xn in ['const','x1']:
             self.exog_names.remove(xn)
         if start_params == None:
-            # Reasonable starting values (equal risk and counts for each relative driver type)
-            start_params = numpy.ones(2*self.num_driver_types)
-        return super(Lpdt, self).fit(start_params=start_params, 
-                                     maxiter=maxiter, maxfun=maxfun, 
-                                     **kwds)
+            # Reasonable starting values (assuming equal risk for each relative driver type)
+            start_params = [[numpy.ones(self.num_driver_types-1)],[numpy.ones(self.num_driver_types-1)]]
+        
+        return super(Lpdt, self).fit(start_params=start_params, maxiter=maxiter, maxfun=maxfun, **kwds)
         
 mod = Lpdt(A, num_driver_types=2, extra_params_names=['theta','lambda'])
 res = mod.fit()
