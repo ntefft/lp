@@ -170,7 +170,10 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     df_accident_est.loc[df_accident_est['drink_status']==1,'driver_type'] = 2 # driver type 2 if drinker
     # reset index for unstacking by veh_no, and keep vehicle count and drink_status
     df_accident_est['veh_no2'] = df_accident_est.groupby(['year','st_case']).cumcount()+1
-    df_accident_est = df_accident_est.reset_index().set_index(equal_mixing + ['st_case','veh_no2'])[['acc_veh_count','driver_type']]
+    idx_add_veh_no2 = ['year','st_case','veh_no2']
+    if 'all' not in equal_mixing:
+        idx_add_veh_no2 = equal_mixing + idx_add_veh_no2
+    df_accident_est = df_accident_est.reset_index().set_index(idx_add_veh_no2)[['acc_veh_count','driver_type']]
     df_accident_est = df_accident_est.unstack()
     
     # should revisit this code because we might be able to use multi-level columns instead of these column names
@@ -198,18 +201,21 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     # clean up dataset and collapse by equal mixing
     df_accident_est = df_accident_est.drop(columns=['acc_veh_count','driver_type'])
     df_accident_est.columns = df_accident_est.columns.droplevel(level='veh_no2')
-    df_accident_est = df_accident_est.groupby(equal_mixing).sum()
+    if 'all' not in equal_mixing:
+        df_accident_est = df_accident_est.groupby(equal_mixing).sum()
+    else:
+        df_accident_est = df_accident_est.sum().to_frame().transpose()
     print('Rows of estimation sample after collapsing by equal mixing: ')
     print(len(df_accident_est.index))
-    
-    # toss observations where there are no (one-vehicle, drunk) or no (one-vehicle, sober) crashes [won't converge otherwise]
-    df_accident_est['a_miss'] = 0
-    for dt in range(1,num_driver_types+1): 
-        df_accident_est.loc[df_accident_est['a_' + str(dt)] == 0,'a_miss'] = 1
-    df_accident_est = df_accident_est[df_accident_est['a_miss'] == 0]
-    df_accident_est = df_accident_est.drop(columns=['a_miss'])
-    print('Rows of estimation sample after tossing out rows with zero single-car observations of either type: ')
-    print(len(df_accident_est.index))
+    if 'all' not in equal_mixing:
+        # toss observations where there are no (one-vehicle, drunk) or no (one-vehicle, sober) crashes [won't converge otherwise]
+        df_accident_est['a_miss'] = 0
+        for dt in range(1,num_driver_types+1): 
+            df_accident_est.loc[df_accident_est['a_' + str(dt)] == 0,'a_miss'] = 1
+        df_accident_est = df_accident_est[df_accident_est['a_miss'] == 0]
+        df_accident_est = df_accident_est.drop(columns=['a_miss'])
+        print('Rows of estimation sample after tossing out rows with zero single-car observations of either type: ')
+        print(len(df_accident_est.index))
         
     print('Final estimation sample: ')
     print(df_accident_est.describe())
