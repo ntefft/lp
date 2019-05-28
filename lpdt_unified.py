@@ -5,7 +5,7 @@ Created on Wed May 15 11:37:00 2019
 @author: ntefft
 """
 
-import os, sys, numpy, pandas # import packages
+import os, sys, numpy, pandas, time # import packages
 from statsmodels.base.model import GenericLikelihoodModel
 
 # path for Spyder or Jupyter Notebooks
@@ -26,7 +26,10 @@ df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the
 
 # get estimation sample
 #A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=2017, equal_mixing=['year','weekend','hour'])
-A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2007, last_year=2017, equal_mixing=['year','weekend','hour','state'])
+A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, 
+                    first_year=1983, last_year=1993, bac_threshold = 0.1, 
+                    equal_mixing=['hour','year','state','weekend'], 
+                    drinking_definition = 'impaired_vs_sober')
 
 # code drawn from http://www.statsmodels.org/dev/examples/notebooks/generated/generic_mle.html
 # also https://austinrochford.com/posts/2015-03-03-mle-python-statsmodels.html
@@ -117,12 +120,15 @@ class Lpdt(GenericLikelihoodModel):
             self.exog_names.remove(xn)
         if start_params == None:
             # Reasonable starting values (assuming equal risk for each relative driver type)
-            start_params = [[numpy.ones(self.num_driver_types-1)],[numpy.ones(self.num_driver_types-1)]]
+            start_params = [[20*numpy.ones(self.num_driver_types-1)],[20*numpy.ones(self.num_driver_types-1)]]
         
         return super(Lpdt, self).fit(start_params=start_params, maxiter=maxiter, maxfun=maxfun, **kwds)
         
 mod = Lpdt(A, num_driver_types=2, extra_params_names=['theta','lambda'])
+start = time.time()
 res = mod.fit()
+end = time.time()
 print(mod.exog_names)
 print(mod.endog_names)
 print(res.summary())
+print("time to fit: " + str(end-start))
