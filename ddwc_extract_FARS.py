@@ -4,7 +4,8 @@ Created on Tue May  7 14:29:49 2019
 
 @author: ntefft
 """
-import dbfread, os, sys, numpy, pandas, shutil, us, zipfile # import packages
+#import dbfread, os, sys, numpy, pandas, shutil, us, zipfile # import packages
+import os, sys, numpy, pandas, shutil, us, zipfile # import packages
 
 # path for Spyder or Jupyter Notebooks
 if os.path.exists(sys.path[0] + '\\Documents\\GitHub\\lpdt'):
@@ -17,7 +18,7 @@ df_states = pandas.DataFrame.from_dict(us.states.mapping('fips', 'abbr'),orient=
 df_states = df_states[df_states.index.notnull()]
 df_states.index = df_states.index.astype(int)
 
-firstYear = 1983
+firstYear = 1982 # 1982 is the first for which multiple imputation files are available
 #firstYear = 2016
 latestYear = 2017
 
@@ -30,37 +31,19 @@ for yr in range(firstYear,latestYear+1):
     
     # extract accident, person, and vehicle files
     zipfile.ZipFile('data\\FARS' + str(yr) + '.zip', 'r').extractall(path='data\\extracted')
-    if yr <= 1993:
-        for ft in ['acc','veh','per']:
-            vars()['df_' + ft + '_yr'] = pandas.DataFrame(dbfread.DBF('data\\extracted\\' + ft + str(yr) + '.dbf',char_decode_errors='replace'))
-    elif 1994 <= yr <= 2014:
-        df_acc_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\accident.dbf',char_decode_errors='replace'))
-        df_veh_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\vehicle.dbf',char_decode_errors='replace'))
-        df_per_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\person.dbf',char_decode_errors='replace'))
-    else:
-        df_acc_yr = pandas.read_csv('data\\extracted\\accident.csv')
-        # need to remove non-utf-8 encoding errors
-        veh_file = open('data\\extracted\\vehicle.csv',encoding='utf-8', errors='replace')
-        df_veh_yr = pandas.read_csv(veh_file) 
-        veh_file.close()
-        df_per_yr = pandas.read_csv('data\\extracted\\person.csv')
+
+    # need to remove non-utf-8 encoding errors
+    acc_file = open('data\\extracted\\accident.csv',encoding='utf-8', errors='replace')
+    df_acc_yr = pandas.read_csv(acc_file)
+    acc_file.close()
+    # need to remove non-utf-8 encoding errors
+    veh_file = open('data\\extracted\\vehicle.csv',encoding='utf-8', errors='replace')
+    df_veh_yr = pandas.read_csv(veh_file) 
+    veh_file.close()
+    df_per_yr = pandas.read_csv('data\\extracted\\person.csv')
         
-    # extract multiple imputation files
-    if yr <= 1993:
-        zipfile.ZipFile('data\\MISEQL' + str(yr) + '.zip', 'r').extractall(path='data\\extracted')
-        df_mi_yr = pandas.read_fwf('data\\extracted\\Miper'  + str(yr-1900) +  '.dat',widths=[4,7,3,2,4,2,2,2,2,2,2,2,2,2])
-        df_mi_yr.columns = ['year','st_case','veh_no','per_no','p1','p2','p3','p4','p5','p6','p7','p8','p9','p10']
-    elif 1994 <= yr <= 1997:
-        df_mi_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\Miper'  + str(yr-1900) + '.dbf',char_decode_errors='replace'))
-    elif 1998 <= yr <= 2008:
-        df_mi_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\Miper.dbf',char_decode_errors='replace'))
-    elif 2009 <= yr <= 2011:
-        zipfile.ZipFile('data\\MIDBF' + str(yr) + '.zip', 'r').extractall(path='data\\extracted')
-        df_mi_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\Miper.dbf',char_decode_errors='replace'))
-    elif 2012 <= yr <= 2014:
-        df_mi_yr = pandas.DataFrame(dbfread.DBF('data\\extracted\\Miper.dbf',char_decode_errors='replace'))
-    else:
-        df_mi_yr = pandas.read_csv('data\\extracted\\Miper.csv')    
+    # extract multiple imputation files  
+    df_mi_yr = pandas.read_csv('data\\extracted\\Miper.csv')    
     
     for ft in ['acc','veh','per','mi']:
         vars()['df_' + ft + '_yr'].columns = vars()['df_' + ft + '_yr'].columns.str.lower() # convert all columns to lower case    
