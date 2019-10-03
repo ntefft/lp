@@ -26,13 +26,17 @@ df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the
 
 # get estimation sample
 #A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=2017, equal_mixing=['year','weekend','hour'])
-A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, 
-#                    first_year=1983, last_year=1993, bac_threshold = 0.1, 
-                    first_year=1983, last_year=1993, bac_threshold = 0, 
+A = lpdtutil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=1993, 
+#                    bac_threshold = 0.1, 
+                    bac_threshold = 0, 
                     equal_mixing=['hour','year','state','weekend'], 
 #                    equal_mixing=['hour'], 
-                    drinking_definition = 'impaired_vs_sober')
+                    drinking_definition = 'police_report_only')
 #                    drinking_definition = 'any_evidence')
+
+#A.to_csv('A.csv')
+#A = pandas.read_csv('A_test.csv')
+#A.set_index(['hour','year','state','weekend'],inplace=True) # set the index
 
 # code drawn from http://www.statsmodels.org/dev/examples/notebooks/generated/generic_mle.html
 # also https://austinrochford.com/posts/2015-03-03-mle-python-statsmodels.html
@@ -49,7 +53,7 @@ def _ll_lpdt(A, num_driver_types, thet, lamb):
     # in order to simplify issues with indexing, first convert the accident dataframe to separate matrices, one for single-car and one for two-car
     A_1 = A[:,:num_driver_types] # one car crashes
     A_2 = numpy.zeros((num_agg_rows,num_driver_types,num_driver_types)) # two car crashes
-    curr_col = 0
+    curr_col = num_driver_types
     for dto in range(0,num_driver_types):
         for dti in range(0,num_driver_types):
             if dti >= dto:

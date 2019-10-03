@@ -39,19 +39,22 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition = 'mi', ba
         df_driver_drink_status = df_driver_drink_status.rename(columns={'mibac1':'drink_status1','mibac2':'drink_status2','mibac3':'drink_status3','mibac4':'drink_status4','mibac5':'drink_status5','mibac6':'drink_status6','mibac7':'drink_status7','mibac8':'drink_status8','mibac9':'drink_status9','mibac10':'drink_status10',}) # rename columns 
     elif drinking_definition == 'police_report_only':
         df_driver_drink_status = df_veh_driver['drinking']
+        df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'any_evidence':
         df_driver_drink_status = df_veh_driver['dr_drink']
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'police_report_primary':
         df_driver_drink_status = df_veh_driver['drinking']
-        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']==0) & (df_veh_driver['drinking'].isin([8,9]) | df_veh_driver['drinking'].isna())] = 0
-        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']>0) & (df_veh_driver['drinking'].isin([8,9]) | df_veh_driver['drinking'].isna())] = 1         
+        df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
+        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_veh_driver['alcohol_test_result']==0)] = 0
+        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_veh_driver['alcohol_test_result']>bac_threshold_scaled)] = 1                 
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'bac_test_primary':
         df_driver_drink_status = df_veh_driver['drinking']
         df_driver_drink_status.loc[df_veh_driver['alcohol_test_result']==0] = 0
         df_driver_drink_status.loc[df_veh_driver['alcohol_test_result']>bac_threshold_scaled] = 1
+        df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'impaired_vs_sober':
         df_driver_drink_status = pandas.Series(index=df_veh_driver.index)
@@ -62,7 +65,7 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition = 'mi', ba
     return df_driver_drink_status
 
 # test code for veh_dr_drinking_status
-#test = veh_dr_drinking_status(df_vehicle, df_person, drinking_definition = 'any_evidence')
+#test = veh_dr_drinking_status(df_vehicle, df_person, drinking_definition = 'bac_test_primary')
 #test.describe()
 #test.value_counts()
 #test.isna().sum()
@@ -263,7 +266,7 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     return df_accident_est
 
 # code for testing
-test = get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=1993)
+#test = get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=1993)
     
 def lnfactorial(n):
     n_calc = int(n)
