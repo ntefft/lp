@@ -274,3 +274,7 @@ def lnfactorial(n):
     for i in range(1,n_calc+1):
         lnf += numpy.log(i)
     return lnf
+
+# calculate boostrap standard error from bootstrap estimates
+def bs_se(theta_bs):
+    return numpy.power(numpy.power((theta_bs-theta_bs.sum()/len(theta_bs)),2).sum()/(len(theta_bs)-1),0.5)
