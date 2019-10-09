@@ -20,7 +20,7 @@ def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
 
 # function that identifies a vehicle's driver as drunk, depending on Levitt & Porter definition of interest
 # returns either a series (single status) or a dataframe (10 imputed values for mi)
-def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition = 'mi', bac_threshold = 0.08):
+def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mirep):
     df_veh_driver = df_vehicle.merge(df_driver,how='left',left_index=True,right_index=True,validate='1:m') # merge in drivers from person file
     
     # DRINKING DEFINITIONS
@@ -32,12 +32,16 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition = 'mi', ba
     # impaired_vs_sober: Legal impairment based on tested BAC, compared against not drinking (intermediate values dropped...this is the supplemental analysis in LP)
     
     bac_threshold_scaled = bac_threshold*100 # need to scale the threshold to match how the data are stored
+    if mirep == 0:
+        df_driver_bac = df_veh_driver['alcohol_test_result']
+    else:
+        df_driver_bac = df_veh_driver['mibac' + str(mirep)]
     
-    if drinking_definition == 'mi':
-        df_driver_drink_status = df_veh_driver[['mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']] > bac_threshold_scaled        
-        df_driver_drink_status = df_driver_drink_status.astype('int')
-        df_driver_drink_status = df_driver_drink_status.rename(columns={'mibac1':'drink_status1','mibac2':'drink_status2','mibac3':'drink_status3','mibac4':'drink_status4','mibac5':'drink_status5','mibac6':'drink_status6','mibac7':'drink_status7','mibac8':'drink_status8','mibac9':'drink_status9','mibac10':'drink_status10',}) # rename columns 
-    elif drinking_definition == 'police_report_only':
+#    if drinking_definition == 'mi':
+#        df_driver_drink_status = df_veh_driver[['mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']] > bac_threshold_scaled        
+#        df_driver_drink_status = df_driver_drink_status.astype('int')
+#        df_driver_drink_status = df_driver_drink_status.rename(columns={'mibac1':'drink_status1','mibac2':'drink_status2','mibac3':'drink_status3','mibac4':'drink_status4','mibac5':'drink_status5','mibac6':'drink_status6','mibac7':'drink_status7','mibac8':'drink_status8','mibac9':'drink_status9','mibac10':'drink_status10',}) # rename columns 
+    if drinking_definition == 'police_report_only':
         df_driver_drink_status = df_veh_driver['drinking']
         df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
@@ -47,31 +51,31 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition = 'mi', ba
     elif drinking_definition == 'police_report_primary':
         df_driver_drink_status = df_veh_driver['drinking']
         df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
-        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_veh_driver['alcohol_test_result']==0)] = 0
-        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_veh_driver['alcohol_test_result']>bac_threshold_scaled)] = 1                 
+        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_driver_bac==0)] = 0
+        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_driver_bac>bac_threshold_scaled)] = 1                 
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'bac_test_primary':
         df_driver_drink_status = df_veh_driver['drinking']
-        df_driver_drink_status.loc[df_veh_driver['alcohol_test_result']==0] = 0
-        df_driver_drink_status.loc[df_veh_driver['alcohol_test_result']>bac_threshold_scaled] = 1
+        df_driver_drink_status.loc[df_driver_bac==0] = 0
+        df_driver_drink_status.loc[df_driver_bac>bac_threshold_scaled] = 1
         df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'impaired_vs_sober':
         df_driver_drink_status = pandas.Series(index=df_veh_driver.index)
-        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']==0) | (df_veh_driver['dr_drink']==0)] = 0
-        df_driver_drink_status.loc[(df_veh_driver['alcohol_test_result']>=bac_threshold_scaled) & (df_veh_driver['dr_drink']!=0)] = 1
+        df_driver_drink_status.loc[(df_driver_bac==0) | (df_veh_driver['dr_drink']==0)] = 0
+        df_driver_drink_status.loc[(df_driver_bac>=bac_threshold_scaled) & (df_veh_driver['dr_drink']!=0)] = 1
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     
     return df_driver_drink_status
 
 # test code for veh_dr_drinking_status
-#test = veh_dr_drinking_status(df_vehicle, df_person, drinking_definition = 'bac_test_primary')
-#test.describe()
-#test.value_counts()
-#test.isna().sum()
+#test = veh_dr_drinking_status(df_vehicle, df_person.loc[df_person['seat_pos']==11], drinking_definition = 'bac_test_primary', 
+#                              bac_threshold = 0.1,mirep=2)
+#print(test.value_counts())
+#print(test.isna().sum())
 
 # function that identifies accidents with missing data (for exclusion from L&P estimation)
-def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition = 'mi', bac_threshold = 0.08):
+def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition, bac_threshold, mirep):
     # collect missing info about the driver
     df_dr_miss = pandas.DataFrame(index=df_driver.index)
     df_dr_miss['miss_age'] = df_driver['age'].isna()
@@ -81,7 +85,7 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition 
     df_veh_miss = pandas.DataFrame(index=df_vehicle.index)
     df_veh_miss['miss_minor_blemishes'] = (df_vehicle['prev_acc'].isna() | df_vehicle['prev_spd'].isna() | df_vehicle['prev_oth'].isna()) 
     df_veh_miss['miss_major_blemishes'] = (df_vehicle['prev_sus'].isna() | df_vehicle['prev_dwi'].isna()) 
-    df_veh_miss['miss_drinking_status'] = pandas.DataFrame(veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold)).isna().any(axis='columns')
+    df_veh_miss['miss_drinking_status'] = pandas.DataFrame(veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mirep)).isna().any(axis='columns')
     
     # collect missing info about the accident
     df_acc_miss = pandas.DataFrame(index=df_accident.index)
@@ -108,7 +112,7 @@ def state_year_prop_miss(df_accident,miss_any):
 
 def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
                                latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
-                               bac_threshold = 0.08, state_year_prop_threshold = 0.13):
+                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, mirep=0):
     # Implement year sample restriction
     df_accident_est = df_accident.loc[range(first_year,last_year+1)] # restrict sample to selected years
     print('Count of accidents after year sample restriction: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
@@ -170,7 +174,7 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     df_acc_miss_flag = accident_missing_data(df_accident_est,
                                              df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)],
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]),
-                                             drinking_definition)
+                                             drinking_definition, bac_threshold, mirep)
     df_acc_miss_flag['miss_any'].value_counts()
     df_st_yr_prop_miss = state_year_prop_miss(df_accident,df_acc_miss_flag['miss_any'])
     
@@ -198,7 +202,7 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
 #    
     df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)], 
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]), 
-                                             drinking_definition)
+                                             drinking_definition, bac_threshold, mirep)
     
     
     # merge in drinking status and collapse accidents by number of drinkers and number of vehicles per accident
@@ -276,5 +280,5 @@ def lnfactorial(n):
     return lnf
 
 # calculate boostrap standard error from bootstrap estimates
-def bs_se(theta_bs):
-    return numpy.power(numpy.power((theta_bs-theta_bs.sum()/len(theta_bs)),2).sum()/(len(theta_bs)-1),0.5)
+def bs_se(theta_bs, axis=None):
+    return numpy.power(numpy.divide(numpy.power((numpy.subtract(theta_bs,numpy.divide(theta_bs.sum(axis),numpy.size(theta_bs,axis)))),2).sum(axis),(numpy.size(theta_bs,axis)-1)),0.5)

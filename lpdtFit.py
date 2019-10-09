@@ -4,9 +4,76 @@ Created on Tue Oct  8 13:03:22 2019
 
 @author: Nathan Tefft
 """
-import numpy # import packages
+import numpy, time # import packages
 import lpdtUtil
 from statsmodels.base.model import GenericLikelihoodModel
+
+def fit_model(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
+                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
+                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, bsreps=100, mirep=0):           
+    
+    est_sample = lpdtUtil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year, last_year, earliest_hour, 
+                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, mirep)        
+    
+    #A.to_csv('A.csv')
+    #A = pandas.read_csv('A_test.csv') # testing output from Stata to see if ML routine is the same...it is
+    #A.set_index(['hour','year','state','weekend'],inplace=True) # set the index  
+    
+    mod = Lpdt(est_sample)
+    start = time.time()
+    res = mod.fit()
+        
+    res.bootstrap(nrep=bsreps) # get bootstrapped results
+    end = time.time()
+    print(mod.exog_names)
+    print(mod.endog_names)
+    print(res.summary())
+    print("time to fit: " + str(end-start))
+
+    # row 0 = theta, row 1 = lambda, row 2 = N
+    # column 0 = estimate, column 1 = bootstrapped standard error
+    res.final_params = numpy.column_stack((res.params,lpdtUtil.bs_se(res.bootstrap_results,axis=0)))
+    res.final_params = numpy.vstack([res.final_params,[(1/res.params[1])*(est_sample['a_2'].sum()/est_sample['a_1'].sum()),lpdtUtil.bs_se((1/res.bootstrap_results[:,1])*(est_sample['a_2'].sum()/est_sample['a_1'].sum()))]])
+    
+    print('Parameters (theta, lambda, N): ', res.final_params[:,0])
+    print('Bootstrap standard errors (theta, lambda, N): ', res.final_params[:,1])
+    print('Log-likelihood: ', res.llf)
+    print('Residual degrees of freedom: ', res.df_resid)
+    
+    return res
+
+def fit_model_mi(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
+                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
+                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, bsreps=100, mireps=10):           
+    
+    res_params = numpy.zeros((mireps, 3, 2))
+    mi_res = numpy.zeros((3, 2))
+    mi_llf = 0
+    mi_df_resid = 0
+    # loop over mi replicates and estimate model
+    for i in range(0,mireps):
+        res = fit_model(df_accident, df_vehicle, df_person, first_year, last_year, earliest_hour, 
+                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, bsreps, mirep=i)
+        res_params[i] = res.final_params
+        mi_res[:,0] += res_params[i,:,0]/mireps # add estimate to running mean of estimates
+        mi_llf += res.llf
+        mi_df_resid = res.df_resid
+        
+    # loop again to calculate standard errors
+    for i in range(0,mireps): 
+        mi_res[:,1] += numpy.power(res_params[i,:,1],2)/mireps + ((1+1/mireps)/(mireps-1))*numpy.power(res_params[i,:,1]-mi_res[:,1],2)
+        
+    print('MI Parameters (theta, lambda, N): ', mi_res[:,0])
+    print('MI bootstrap standard errors (theta, lambda, N): ', mi_res[:,1])
+    print('MI log-likelihood: ', mi_llf)
+    print('MI residual degrees of freedom: ', mi_df_resid)
+    
+    # return last model results with mi results attached
+    res.mi_params = mi_res
+    res.mi_llf = mi_llf
+    res.mi_df_resid = mi_df_resid
+    
+    return res
 
 # code drawn from http://www.statsmodels.org/dev/examples/notebooks/generated/generic_mle.html
 # also https://austinrochford.com/posts/2015-03-03-mle-python-statsmodels.html
@@ -82,10 +149,10 @@ def _ll_lpdt(A, num_driver_types, thet, lamb):
 # create a new model class which inherits from GenericLikelihoodModel
 class Lpdt(GenericLikelihoodModel):
     # endog is A (accident counts), and exog is num_driver_types
-    def __init__(self, endog, exog=None, num_driver_types=2, **kwds):
+    def __init__(self, endog, exog=None, num_driver_types=2, extra_params_names=['theta','lambda'], **kwds):
         if exog is None:
             exog = numpy.zeros((numpy.size(endog,axis=0),2*(num_driver_types-1))) # we don't have exogenous variables in our model
-        super(Lpdt, self).__init__(endog, exog, num_driver_types=2, **kwds)
+        super(Lpdt, self).__init__(endog, exog, num_driver_types=2, extra_params_names=['theta','lambda'], **kwds)
         
     def nloglikeobs(self, params):
         thet = params[:(self.num_driver_types-1)]
