@@ -10,14 +10,15 @@ import numpy,pandas
 # Function that returns a dataframe of drivers, from the person file. The default is to drop crashes with multiple drivers in at least one of the driver's seats
 def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
     df_driver = df_person.loc[df_person['seat_pos']==11] # keep only drivers from the person file
-    df_driver = df_driver.loc[~df_driver.index.droplevel(['per_no']).duplicated(keep_duplicated)] # drop the first of duplicate drivers (when there were two persons in the driver seat)
+    df_driver = df_driver.loc[~df_driver.index.droplevel(['per_no']).duplicated(keep_duplicated)] # either don't keep duplicate drivers, or drop the first or last of the duplicates
     if keep_per_no == False:
         df_driver = df_driver.droplevel(['per_no'])
     return df_driver
 
 # test code for get_driver
-#test = get_driver(df_person)
-
+#
+#test3 = get_driver(df_person) # keep only drivers from the person file
+    
 # function that identifies a vehicle's driver as drunk, depending on Levitt & Porter definition of interest
 # returns either a series (single status) or a dataframe (10 imputed values for mi)
 def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mirep):
@@ -113,6 +114,13 @@ def state_year_prop_miss(df_accident,miss_any):
 def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
                                latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
                                bac_threshold = 0.08, state_year_prop_threshold = 0.13, mirep=0):
+    print('Count of all accidents: ')
+    print(len(df_accident.index))
+    print('Count of all vehicles: ')
+    print(len(df_vehicle.index))
+    print('Count of all drivers: ')
+    print(len(get_driver(df_person)))
+    
     # Implement year sample restriction
     df_accident_est = df_accident.loc[range(first_year,last_year+1)] # restrict sample to selected years
     print('Count of accidents after year sample restriction: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
@@ -120,8 +128,11 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     print('Count of vehicles after year sample restriction: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
     print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].index))
     
-    # Drop accidents that do not have any identified drivers
-    df_accident_est = df_accident_est[df_accident_est.index.isin(get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]).index.droplevel('veh_no'))] # restrict sample to accidents with at least one driver (initial replication exercise assumption)
+#    # Drop accidents that do not have any identified drivers
+#    df_accident_est = df_accident_est[df_accident_est.index.isin(get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]).index.droplevel('veh_no'))] # restrict sample to accidents with at least one driver (initial replication exercise assumption)
+    # Drop accidents that include any vehicles that don't have a driver (all vehicles must have a driver)
+    df_accident_est = df_accident_est[~df_accident_est.index.isin(df_vehicle[~df_vehicle.index.isin(get_driver(df_person).index)].index.droplevel(['veh_no']))]
+        
     print('Count of accidents after excluding accidents with no recorded drivers: ')
     print(len(df_accident_est.index))
     print('Count of vehicles after excluding accidents with no recorded drivers: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported

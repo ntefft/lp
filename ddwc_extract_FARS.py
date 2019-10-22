@@ -19,7 +19,7 @@ df_states = df_states[df_states.index.notnull()]
 df_states.index = df_states.index.astype(int)
 
 firstYear = 1982 # 1982 is the first for which multiple imputation files are available
-#firstYear = 2016
+#firstYear = 1983
 latestYear = 2017
 
 df_accident = pandas.DataFrame() # initialize analytic dataframe
@@ -33,11 +33,13 @@ for yr in range(firstYear,latestYear+1):
     zipfile.ZipFile('data\\FARS' + str(yr) + '.zip', 'r').extractall(path='data\\extracted')
 
     # need to remove non-utf-8 encoding errors
-    acc_file = open('data\\extracted\\accident.csv',encoding='utf-8', errors='replace')
+#    acc_file = open('data\\extracted\\accident.csv',encoding='utf-8', errors='replace')
+    acc_file = open('data\\extracted\\accident.csv', errors='ignore')
     df_acc_yr = pandas.read_csv(acc_file)
     acc_file.close()
     # need to remove non-utf-8 encoding errors
-    veh_file = open('data\\extracted\\vehicle.csv',encoding='utf-8', errors='replace')
+#    veh_file = open('data\\extracted\\vehicle.csv',encoding='utf-8', errors='replace')
+    veh_file = open('data\\extracted\\vehicle.csv',errors='ignore')
     df_veh_yr = pandas.read_csv(veh_file) 
     veh_file.close()
     df_per_yr = pandas.read_csv('data\\extracted\\person.csv')
@@ -63,6 +65,7 @@ for yr in range(firstYear,latestYear+1):
     
     # keep variables to be used from the accidents file
     df_acc_yr = df_acc_yr[['state','state_abbr','quarter','day_week','hour','persons']]
+    print('Count of accidents: ' + str(len(df_acc_yr)))
     df_accident = df_accident.append(df_acc_yr)
 
     # PREPARE THE ANNUAL VEHICLE VARIABLES
@@ -87,6 +90,7 @@ for yr in range(firstYear,latestYear+1):
         df_veh_yr.loc[df_veh_yr['prev_' + vt] > 97, 'prev_' + vt] = numpy.nan # previous violations
 
     df_veh_yr = df_veh_yr[['prev_acc','prev_sus','prev_dwi','prev_spd','prev_oth','mod_year','dr_drink','occupants']]
+    print('Count of vehicles: ' + str(len(df_veh_yr)))
     df_vehicle = df_vehicle.append(df_veh_yr)
 
     # PREPARE THE ANNUAL PERSON VARIABLES
@@ -125,6 +129,7 @@ for yr in range(firstYear,latestYear+1):
 
     df_per_yr = df_per_yr.rename(columns={'p1':'mibac1','p2':'mibac2','p3':'mibac3','p4':'mibac4','p5':'mibac5','p6':'mibac6','p7':'mibac7','p8':'mibac8','p9':'mibac9','p10':'mibac10'}) # rename bac columns    
     df_per_yr = df_per_yr[['seat_pos','drinking','alc_det','atst_typ','alcohol_test_result','race','rest_use','age','age_lt15','sex','mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']]
+    print('Count of persons: ' + str(len(df_per_yr)))
     df_person = df_person.append(df_per_yr)
     
     for ft in ['acc','veh','per','mi']: # clean up memory 
