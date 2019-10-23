@@ -30,11 +30,12 @@ mod_results = lpdtFit.fit_model(df_accident, df_vehicle, df_person,
                     last_year=1993, 
 #                    equal_mixing=['hour'], 
                     equal_mixing=['year','state','weekend','hour'], 
-                    drinking_definition='any_evidence', 
+                    drinking_definition='police_report_primary', 
 #                    drinking_definition = 'bac_test_primary')                                     
 #                    bac_threshold = 0.1, 
                     bac_threshold = 0, 
                     state_year_prop_threshold = 0.13,
+#                    state_year_prop_threshold = 0.12, # closest restriction to L&P's sample size
                     bsreps=3)
 print(mod_results.final_params)
 

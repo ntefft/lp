@@ -79,7 +79,8 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
 def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition, bac_threshold, mirep):
     # collect missing info about the driver
     df_dr_miss = pandas.DataFrame(index=df_driver.index)
-    df_dr_miss['miss_age'] = df_driver['age'].isna()
+    df_dr_miss['miss_age'] = (df_driver['age'].isna()) | (df_driver['age'] < 13) # exclude child drivers
+#    df_dr_miss['miss_age'] = df_driver['age'].isna()
     df_dr_miss['miss_sex'] = df_driver['sex'].isna()
     
     # collect missing info about the vehicle
@@ -98,22 +99,27 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition,
     df_return_miss['miss_any'] = df_return_miss.any(axis='columns')
     
     return df_return_miss
-
-# function that calculates the proportion of state-year observations that have missing data (for exclusion from L&P estimation)
-def state_year_prop_miss(df_accident,miss_any):
-    df_acc_miss_any = df_accident.merge(miss_any,how='inner',on=['year','st_case'])
-    return df_acc_miss_any[['state','miss_any']].groupby(['year','state']).mean()
-    
-#    
 ## code for testing
-#df_acc_miss_flag = accident_missing_data(df_accident,df_vehicle,get_driver(df_person),drinking_definition='any_evidence')
-#df_acc_miss_flag['miss_any'].value_counts()
+#df_driver = get_driver(df_person)
+#test = (df_driver['age'].isna()) | (df_driver['age'] < 13)
+#test.value_counts()
+#df_acc_miss_flag = accident_missing_data(df_accident,df_vehicle,get_driver(df_person),'any_evidence',0,0)
+#df_acc_miss_flag['miss_age'].value_counts()
 #
-#test = state_year_prop_miss(df_acc_miss_flag['miss_any'])
 
 def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
                                latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
                                bac_threshold = 0.08, state_year_prop_threshold = 0.13, mirep=0):
+#    first_year=1983
+#    last_year=1993
+#    earliest_hour=20
+#    latest_hour=4
+#    equal_mixing=['year','state','weekend','hour']
+#    drinking_definition='police_report_only'
+#    bac_threshold = 0.08
+#    state_year_prop_threshold = 0.13
+#    mirep=0
+#    
     print('Count of all accidents: ')
     print(len(df_accident.index))
     print('Count of all vehicles: ')
@@ -171,31 +177,25 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     df_accident_est = df_accident_est.merge(acc_veh_count.loc[acc_veh_count<=2],how='inner',on=['year','st_case'])
     print('Count of accidents after vehicle count sample restriction: ')
     print(len(df_accident_est.index))
-    
-    print('Proportion of accidents missing information about police-reported drinking status:')
-    
-    print('Proportion of accidents missing information about driver age:')
-    print(len(df_accident_est[df_accident_est.index.isin(get_driver(df_person[df_person['age'].isna()]).index.droplevel('veh_no'))].index)/len(df_accident_est.index))
-    print('Proportion of accidents missing information about driver sex:')
-    print(len(df_accident_est[df_accident_est.index.isin(get_driver(df_person[df_person['sex'].isna()]).index.droplevel('veh_no'))].index)/len(df_accident_est.index))
-    print('Proportion of accidents missing information about past driving record:')
-    print(len(df_accident_est[df_accident_est.index.isin(df_vehicle[(df_vehicle['prev_acc'].isna() | df_vehicle['prev_spd'].isna() | df_vehicle['prev_oth'].isna() | df_vehicle['prev_sus'].isna() | df_vehicle['prev_dwi'].isna())].index.droplevel('veh_no'))].index)/len(df_accident_est.index))
-    
+
     # get dataframe of booleans indicating whether each variable has missing data (or all of them)
     df_acc_miss_flag = accident_missing_data(df_accident_est,
                                              df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)],
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]),
                                              drinking_definition, bac_threshold, mirep)
-    df_acc_miss_flag['miss_any'].value_counts()
-    df_st_yr_prop_miss = state_year_prop_miss(df_accident,df_acc_miss_flag['miss_any'])
+    print('Proportion of accidents missing information about various and any characteristics:')
+    print(df_acc_miss_flag.mean())
+    
+    df_acc_miss_flag_plus = df_accident_est[['state']].merge(df_acc_miss_flag,how='inner',on=['year','st_case'])
+    df_st_yr_prop_miss = df_acc_miss_flag_plus[['state','miss_any']].groupby(['year','state']).mean()
     
     # only keep accidents in state-years that have a proportion of missing data that is above the given threshold
     df_accident_est = df_accident_est.reset_index().set_index(['year','state']) # reset index in order to select by state and year
-    df_accident_est = df_accident_est[df_accident_est.index.isin(df_st_yr_prop_miss.loc[df_st_yr_prop_miss['miss_any']<state_year_prop_threshold].index)]
+    df_accident_est = df_accident_est[df_accident_est.index.isin(df_st_yr_prop_miss.loc[df_st_yr_prop_miss['miss_any']<=state_year_prop_threshold].index)]
     df_accident_est = df_accident_est.reset_index().set_index(['year','st_case'])
     print('Count of accidents after state-year missing proportion sample restriction: ')
     print(len(df_accident_est.index))
-    
+
     # only keep accidents that don't have missing data
     df_accident_est = df_accident_est[df_accident_est.index.isin(df_acc_miss_flag.loc[df_acc_miss_flag['miss_any']==False].index)]
     print('Count of accidents after state-year missing data sample restriction: ')
