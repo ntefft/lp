@@ -53,7 +53,7 @@ def fit_model_mi(df_accident, df_vehicle, df_person, first_year=2017, last_year=
     # loop over mi replicates and estimate model
     for i in range(0,mireps):
         res = fit_model(df_accident, df_vehicle, df_person, first_year, last_year, earliest_hour, 
-                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, bsreps, mirep=i)
+                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, bsreps, mirep=(i+1))
         res_params[i] = res.final_params
         mi_res[:,0] += res_params[i,:,0]/mireps # add estimate to running mean of estimates
         mi_llf += res.llf
