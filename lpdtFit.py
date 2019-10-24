@@ -10,10 +10,10 @@ from statsmodels.base.model import GenericLikelihoodModel
 
 def fit_model(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
                                latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
-                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, bsreps=100, mirep=0):           
+                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, bsreps=100, mirep=0, summarize_sample=False):           
     
     est_sample = lpdtUtil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year, last_year, earliest_hour, 
-                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, mirep)        
+                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, mirep, summarize_sample)        
     
     #A.to_csv('A.csv')
     #A = pandas.read_csv('A_test.csv') # testing output from Stata to see if ML routine is the same...it is

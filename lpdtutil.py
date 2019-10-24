@@ -5,7 +5,7 @@ Created on Fri May 10 11:41:35 2019
 @author: ntefft
 """
 
-import numpy,pandas
+import numpy,pandas,time
 
 # Function that returns a dataframe of drivers, from the person file. The default is to drop crashes with multiple drivers in at least one of the driver's seats
 def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
@@ -87,6 +87,7 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition,
     df_veh_miss = pandas.DataFrame(index=df_vehicle.index)
     df_veh_miss['miss_minor_blemishes'] = (df_vehicle['prev_acc'].isna() | df_vehicle['prev_spd'].isna() | df_vehicle['prev_oth'].isna()) 
     df_veh_miss['miss_major_blemishes'] = (df_vehicle['prev_sus'].isna() | df_vehicle['prev_dwi'].isna()) 
+    df_veh_miss['miss_any_blemishes'] = (df_veh_miss['miss_minor_blemishes'] | df_veh_miss['miss_major_blemishes']) 
     df_veh_miss['miss_drinking_status'] = pandas.DataFrame(veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mirep)).isna().any(axis='columns')
     
     # collect missing info about the accident
@@ -96,6 +97,7 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition,
     df_acc_miss['miss_state'] = df_accident['state'].isna()
     
     df_return_miss = df_acc_miss.merge(df_veh_miss.merge(df_dr_miss,how='left',on=['year','st_case','veh_no']),how='left',on=['year','st_case']).groupby(['year','st_case']).any()
+    df_return_miss['miss_any_excl_drink_stat'] = df_return_miss.drop(columns=['miss_drinking_status']).any(axis='columns')
     df_return_miss['miss_any'] = df_return_miss.any(axis='columns')
     
     return df_return_miss
@@ -109,82 +111,111 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition,
 
 def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
                                latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
-                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, mirep=0):
-#    first_year=1983
-#    last_year=1993
-#    earliest_hour=20
-#    latest_hour=4
-#    equal_mixing=['year','state','weekend','hour']
-#    drinking_definition='police_report_only'
-#    bac_threshold = 0.08
-#    state_year_prop_threshold = 0.13
-#    mirep=0
-#    
-    print('Count of all accidents: ')
-    print(len(df_accident.index))
-    print('Count of all vehicles: ')
-    print(len(df_vehicle.index))
-    print('Count of all drivers: ')
-    print(len(get_driver(df_person)))
-    
+                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, mirep=0, summarize_sample=True):
+    first_year=1983
+    last_year=1993
+    earliest_hour=20
+    latest_hour=4
+    equal_mixing=['year','state','weekend','hour']
+    drinking_definition='police_report_only'
+    bac_threshold = 0.08
+    state_year_prop_threshold = 0.13
+    mirep=0
+    summarize_sample=True
+   
+    start = time.time()
+    print("Building the estimation sample...")
+    if summarize_sample == True:
+        print('Count of all accidents: ')
+        print(len(df_accident.index))
+        print('Count of all vehicles: ')
+        print(len(df_vehicle.index))
+        print('Count of all drivers: ')
+        print(len(get_driver(df_person)))
+        
     # Implement year sample restriction
     df_accident_est = df_accident.loc[range(first_year,last_year+1)] # restrict sample to selected years
-    print('Count of accidents after year sample restriction: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
-    print(len(df_accident_est.index))
-    print('Count of vehicles after year sample restriction: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
-    print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].index))
-    
+    if summarize_sample == True:
+        print('Count of accidents after year sample restriction: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
+        print(len(df_accident_est.index))
+        print('Count of vehicles after year sample restriction: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].index))
+        
 #    # Drop accidents that do not have any identified drivers
 #    df_accident_est = df_accident_est[df_accident_est.index.isin(get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]).index.droplevel('veh_no'))] # restrict sample to accidents with at least one driver (initial replication exercise assumption)
     # Drop accidents that include any vehicles that don't have a driver (all vehicles must have a driver)
     df_accident_est = df_accident_est[~df_accident_est.index.isin(df_vehicle[~df_vehicle.index.isin(get_driver(df_person).index)].index.droplevel(['veh_no']))]
+    if summarize_sample == True:    
+        print('Count of accidents after excluding accidents with no recorded drivers: ')
+        print(len(df_accident_est.index))
+        print('Count of vehicles after excluding accidents with no recorded drivers: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].index))
+        print('Count of accidents with missing hours: ')
+        print(len(df_accident_est.loc[df_accident_est['hour'].isna()]))
+        print('Count of vehicles with missing hours: ')
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.loc[df_accident_est['hour'].isna()].index)].index))   
+        acc_veh_count = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
+        acc_veh_count = acc_veh_count.rename('acc_veh_count')
+        print('Count of accidents by vehicles per accident, before hours restriction:')
+        print(acc_veh_count.value_counts())
+        print('Proportion of accidents with 3 or more drivers, before hours restriction:')
+        print(len(df_accident_est.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)/len(df_accident_est.index))
+        print('Proportion of drivers in accidents with 3 or more drivers, before hours restriction:')
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)])/len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)]))
         
-    print('Count of accidents after excluding accidents with no recorded drivers: ')
-    print(len(df_accident_est.index))
-    print('Count of vehicles after excluding accidents with no recorded drivers: ') # note slightly higher count because in Stata version we initially drop accidents in which no drivers were reported
-    print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].index))
-    print('Count of accidents with missing hours: ')
-    print(len(df_accident_est.loc[df_accident_est['hour'].isna()]))
-    print('Count of vehicles with missing hours: ')
-    print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.loc[df_accident_est['hour'].isna()].index)].index))
-    
-    print('Count of accidents by vehicles per accident, before hours restriction:')
-    acc_veh_count = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
-    acc_veh_count = acc_veh_count.rename('acc_veh_count')
-    print(acc_veh_count.value_counts())
-    print('Proportion of accidents with 3 or more drivers, before hours restriction:')
-    print(len(df_accident_est.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)/len(df_accident_est.index))
-    
     # Implement hours restriction
     if earliest_hour > latest_hour: # wrap selected hours across midnight, and keep that sample
         df_accident_est = df_accident_est.loc[(df_accident_est['hour']>=earliest_hour) | (df_accident_est['hour']<=latest_hour)]
     else: # get simple range of hours, and keep that sample
         df_accident_est = df_accident_est.loc[(df_accident_est['hour']>=earliest_hour) & (df_accident_est['hour']<=latest_hour)]
-    print('Count of accidents after hour sample restriction: ')
-    print(len(df_accident_est.index))
-    print('Count of vehicles after hour sample restriction: ')
-    print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].index))
+    if summarize_sample == True:    
+        print('Count of accidents after hour sample restriction: ')
+        print(len(df_accident_est.index))
+        print('Count of vehicles after hour sample restriction: ')
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].index))      
+        print('Count of accidents by vehicles per accident, after hours restriction:')
+        acc_veh_count = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
+        acc_veh_count = acc_veh_count.rename('acc_veh_count')
+        print(acc_veh_count.value_counts())
+        print('Proportion of accidents with 3 or more drivers, after hours restriction:')
+        print(len(df_accident_est.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)/len(df_accident_est.index))
+        print('Proportion of drivers in accidents with 3 or more drivers, before hours restriction:')
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)])/len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)]))
         
-    print('Count of accidents by vehicles per accident, after hours restriction:')
+    # Implement restriction keeping only accidents with 1 or 2 involved vehicles
     acc_veh_count = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
     acc_veh_count = acc_veh_count.rename('acc_veh_count')
-    print(acc_veh_count.value_counts())
-    print('Proportion of accidents with 3 or more drivers, after hours restriction:')
-    print(len(df_accident_est.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)/len(df_accident_est.index))
-    
-    # Implement restriction keeping only accidents with 1 or 2 involved vehicles
-    # NOTE: I think there was a bug in the initial Stata code implementing these restrictions. In that case, some accidents with missing drivers were being kept, resulting in too many one-vehicle crashes being identified
     df_accident_est = df_accident_est.merge(acc_veh_count.loc[acc_veh_count<=2],how='inner',on=['year','st_case'])
-    print('Count of accidents after vehicle count sample restriction: ')
-    print(len(df_accident_est.index))
-
+    if summarize_sample == True:    
+        print('Count of accidents after vehicle count sample restriction: ')
+        print(len(df_accident_est.index))
+        print('Count of drivers after vehicle count sample restriction: ')
+        tmp_driver = get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)])
+        print(len(tmp_driver.index))
+        print('Count and proportion of drivers with drinking==8 or drinking==9 after vehicle count sample restriction: ')
+        print(len(tmp_driver.loc[tmp_driver['drinking'].isin([8,9])]))
+        print(len(tmp_driver.loc[tmp_driver['drinking'].isin([8,9])])/len(tmp_driver))
+        print('Proportion of all drivers involved in all fatal crashes lacking a police evaluation: ')
+        tmp_all_driver = get_driver(df_person)
+        print(len(tmp_all_driver.loc[tmp_all_driver['drinking'].isin([8,9]) | tmp_all_driver['drinking'].isna()])/len(tmp_all_driver))
+        print('Count and proportion of drivers missing BAC test after vehicle count sample restriction: ')
+        print(len(tmp_driver.loc[tmp_driver['alcohol_test_result'].isna()]))
+        print(len(tmp_driver.loc[tmp_driver['alcohol_test_result'].isna()])/len(tmp_driver))
+        print('Cross-tabulation of police evaluation and BAC test result: ')
+        tmp_driver['bac_gt0_na'] = tmp_driver['alcohol_test_result']
+        tmp_driver.loc[tmp_driver['bac_gt0_na']>0,'bac_gt0_na'] = 1
+        tmp_driver.loc[tmp_driver['bac_gt0_na'].isna(),'bac_gt0_na'] = 2
+        pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True)
+        pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True).apply(lambda r: r/len(tmp_driver))
+        
     # get dataframe of booleans indicating whether each variable has missing data (or all of them)
     df_acc_miss_flag = accident_missing_data(df_accident_est,
                                              df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)],
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]),
                                              drinking_definition, bac_threshold, mirep)
-    print('Proportion of accidents missing information about various and any characteristics:')
-    print(df_acc_miss_flag.mean())
+    if summarize_sample == True:    
+        print('Proportion of accidents missing information about various and any characteristics:')
+        print(df_acc_miss_flag.mean())
     
     df_acc_miss_flag_plus = df_accident_est[['state']].merge(df_acc_miss_flag,how='inner',on=['year','st_case'])
     df_st_yr_prop_miss = df_acc_miss_flag_plus[['state','miss_any']].groupby(['year','state']).mean()
@@ -193,24 +224,23 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
     df_accident_est = df_accident_est.reset_index().set_index(['year','state']) # reset index in order to select by state and year
     df_accident_est = df_accident_est[df_accident_est.index.isin(df_st_yr_prop_miss.loc[df_st_yr_prop_miss['miss_any']<=state_year_prop_threshold].index)]
     df_accident_est = df_accident_est.reset_index().set_index(['year','st_case'])
-    print('Count of accidents after state-year missing proportion sample restriction: ')
-    print(len(df_accident_est.index))
+    if summarize_sample == True:    
+        print('Count of accidents after state-year missing proportion sample restriction: ')
+        print(len(df_accident_est.index))
 
     # only keep accidents that don't have missing data
     df_accident_est = df_accident_est[df_accident_est.index.isin(df_acc_miss_flag.loc[df_acc_miss_flag['miss_any']==False].index)]
-    print('Count of accidents after state-year missing data sample restriction: ')
-    print(len(df_accident_est.index))
-    
+    if summarize_sample == True:    
+        print('Count of accidents after state-year missing data sample restriction: ')
+        print(len(df_accident_est.index))
+        
     # generate weekend variable
     df_accident_est['weekend'] = ((df_accident_est['day_week'] == 6) & (df_accident_est['hour'] >= 20)) | (df_accident_est['day_week'] == 7) | ((df_accident_est['day_week'] == 1) & (df_accident_est['hour'] <= 4))
-    print('Count of weekdays vs weekend days: ')
-    print(df_accident_est['weekend'].value_counts())
-    
-    # get dataframe of drinking status, then group by accident to sum drunk counts
-#    df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)], 
-#                                             get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]), 
-#                                             drinking_definition).groupby(['year','st_case']).sum()
-#    
+    if summarize_sample == True:    
+        print('Count of weekdays vs weekend days: ')
+        print(df_accident_est['weekend'].value_counts())
+        
+    # get dataframe of drinking status, then group by accident to sum drunk counts 
     df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)], 
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]), 
                                              drinking_definition, bac_threshold, mirep)
@@ -274,10 +304,13 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
         df_accident_est = df_accident_est.drop(columns=['a_miss'])
         print('Rows of estimation sample after tossing out rows with zero single-car observations of either type: ')
         print(len(df_accident_est.index))
-        
-    print('Final estimation sample: ')
-    print(df_accident_est.describe())
     
+    if summarize_sample == True:        
+        print('Final estimation sample: ')
+        print(df_accident_est.describe())
+    
+    end = time.time()
+    print("Time to build estimation sample: " + str(end-start))
     return df_accident_est
 
 # code for testing
