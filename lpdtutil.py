@@ -109,22 +109,22 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition,
 #df_acc_miss_flag['miss_age'].value_counts()
 #
 
-def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
-                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
-                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, mirep=0, summarize_sample=True):
-    first_year=1983
-    last_year=1993
-    earliest_hour=20
-    latest_hour=4
-    equal_mixing=['year','state','weekend','hour']
-    drinking_definition='police_report_only'
-    bac_threshold = 0.08
-    state_year_prop_threshold = 0.13
-    mirep=0
-    summarize_sample=True
-   
+def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
+                        latest_hour=4, drinking_definition='any_evidence', bac_threshold = 0.08, 
+                        state_year_prop_threshold = 0.13, mirep=0,summarize_sample=True):
+#    first_year=1983
+#    last_year=1993
+#    earliest_hour=20
+#    latest_hour=4
+#    equal_mixing=['year','state','weekend','hour']
+#    drinking_definition='police_report_only'
+#    bac_threshold = 0.08
+#    state_year_prop_threshold = 0.13
+#    mirep=0
+#    summarize_sample=True
+#   
     start = time.time()
-    print("Building the estimation sample...")
+    print("Building the analytic sample...")
     if summarize_sample == True:
         print('Count of all accidents: ')
         print(len(df_accident.index))
@@ -240,81 +240,93 @@ def get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=20
         print('Count of weekdays vs weekend days: ')
         print(df_accident_est['weekend'].value_counts())
         
+    end = time.time()
+    print("Time to build analytic sample: " + str(end-start))
+    return df_accident_est
+
+# code for testing
+#test = get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=1993)
+
+def get_estimation_sample(analytic_sample, df_vehicle, df_person, 
+                          equal_mixing=['year','state','weekend','hour'], 
+                          drinking_definition='any_evidence', bac_threshold = 0.08, mirep=0):
+
+    start = time.time()
+    print("Building the estimation sample...")
+    
+    estimation_sample = analytic_sample
+    
     # get dataframe of drinking status, then group by accident to sum drunk counts 
-    df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(df_accident_est.index)], 
-                                             get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]), 
+    df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)], 
+                                             get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(analytic_sample.index)]), 
                                              drinking_definition, bac_threshold, mirep)
     
-    
     # merge in drinking status and collapse accidents by number of drinkers and number of vehicles per accident
-    df_accident_est = df_accident_est.merge(df_acc_drink_count.reset_index().set_index(['year','st_case']),how='left',on=['year','st_case'])
+    estimation_sample = estimation_sample.merge(df_acc_drink_count.reset_index().set_index(['year','st_case']),how='left',on=['year','st_case'])
     #    ultimately, label each driver as 1 of 4 types:
     #	1 = not drinking, no kids
     #	2 = drinking, no kids
     #	3 = not drinking, kids
     #	4 = drinking, kids
-    df_accident_est['driver_type'] = numpy.nan
-    df_accident_est.loc[df_accident_est['drink_status']==0,'driver_type'] = 1 # driver type 1 if non-drinker
-    df_accident_est.loc[df_accident_est['drink_status']==1,'driver_type'] = 2 # driver type 2 if drinker
+    estimation_sample['driver_type'] = numpy.nan
+    estimation_sample.loc[estimation_sample['drink_status']==0,'driver_type'] = 1 # driver type 1 if non-drinker
+    estimation_sample.loc[estimation_sample['drink_status']==1,'driver_type'] = 2 # driver type 2 if drinker
     # reset index for unstacking by veh_no, and keep vehicle count and drink_status
-    df_accident_est['veh_no2'] = df_accident_est.groupby(['year','st_case']).cumcount()+1
+    estimation_sample['veh_no2'] = estimation_sample.groupby(['year','st_case']).cumcount()+1
     idx_add_veh_no2 = ['year','st_case','veh_no2']
     if 'all' not in equal_mixing:
         idx_add_veh_no2 = equal_mixing + idx_add_veh_no2
-    df_accident_est = df_accident_est.reset_index().set_index(idx_add_veh_no2)[['acc_veh_count','driver_type']]
-    df_accident_est = df_accident_est.unstack()
+    estimation_sample = estimation_sample.reset_index().set_index(idx_add_veh_no2)[['acc_veh_count','driver_type']]
+    estimation_sample = estimation_sample.unstack()
     
     # should revisit this code because we might be able to use multi-level columns instead of these column names
     num_driver_types = 2
     # one-car crashes, looping over driver types
-#    df_accident_est['a_1veh_total'] = 0 # keep a running total, for the maximum likelihood function
+#    estimation_sample['a_1veh_total'] = 0 # keep a running total, for the maximum likelihood function
     for dt in range(1,num_driver_types+1): 
-        df_accident_est['a_' + str(dt)] = 0
-        df_accident_est.loc[(df_accident_est['acc_veh_count'][1] == 1) & (df_accident_est['driver_type'][1] == dt),'a_' + str(dt)] = 1
-#        df_accident_est['a_1veh_total'] = df_accident_est['a_1veh_total'] + df_accident_est['a_' + str(dt)]
+        estimation_sample['a_' + str(dt)] = 0
+        estimation_sample.loc[(estimation_sample['acc_veh_count'][1] == 1) & (estimation_sample['driver_type'][1] == dt),'a_' + str(dt)] = 1
+#        estimation_sample['a_1veh_total'] = estimation_sample['a_1veh_total'] + estimation_sample['a_' + str(dt)]
 
     # two-car crashes, looping over driver types
-#    df_accident_est['a_2veh_total'] = 0 # keep a running total, for the maximum likelihood function
+#    estimation_sample['a_2veh_total'] = 0 # keep a running total, for the maximum likelihood function
     for dt1 in range(1,num_driver_types+1): 
         for dt2 in range(1,num_driver_types+1): 
 #            if dt2 >= dt1: # in order to eliminate duplicates in terms of combinations
-            df_accident_est['a_' + str(dt1) + '_' + str(dt2)] = 0
-            df_accident_est.loc[(df_accident_est['acc_veh_count'][1] == 2) & (df_accident_est['driver_type'][1] == dt1) & (df_accident_est['driver_type'][2] == dt2),'a_' + str(dt1) + '_' + str(dt2)] = 1
-#            df_accident_est['a_2veh_total'] = df_accident_est['a_2veh_total'] + df_accident_est['a_' + str(dt1) + '_' + str(dt2)]
+            estimation_sample['a_' + str(dt1) + '_' + str(dt2)] = 0
+            estimation_sample.loc[(estimation_sample['acc_veh_count'][1] == 2) & (estimation_sample['driver_type'][1] == dt1) & (estimation_sample['driver_type'][2] == dt2),'a_' + str(dt1) + '_' + str(dt2)] = 1
+#            estimation_sample['a_2veh_total'] = estimation_sample['a_2veh_total'] + estimation_sample['a_' + str(dt1) + '_' + str(dt2)]
             if dt1 > dt2: # combine duplicates and drop duplicated columns
-                df_accident_est['a_' + str(dt2) + '_' + str(dt1)] = df_accident_est['a_' + str(dt2) + '_' + str(dt1)] + df_accident_est['a_' + str(dt1) + '_' + str(dt2)]
-                df_accident_est = df_accident_est.drop(columns=['a_' + str(dt1) + '_' + str(dt2)])
+                estimation_sample['a_' + str(dt2) + '_' + str(dt1)] = estimation_sample['a_' + str(dt2) + '_' + str(dt1)] + estimation_sample['a_' + str(dt1) + '_' + str(dt2)]
+                estimation_sample = estimation_sample.drop(columns=['a_' + str(dt1) + '_' + str(dt2)])
             
     
     # clean up dataset and collapse by equal mixing
-    df_accident_est = df_accident_est.drop(columns=['acc_veh_count','driver_type'])
-    df_accident_est.columns = df_accident_est.columns.droplevel(level='veh_no2')
+    estimation_sample = estimation_sample.drop(columns=['acc_veh_count','driver_type'])
+    estimation_sample.columns = estimation_sample.columns.droplevel(level='veh_no2')
     if 'all' not in equal_mixing:
-        df_accident_est = df_accident_est.groupby(equal_mixing).sum()
+        estimation_sample = estimation_sample.groupby(equal_mixing).sum()
     else:
-        df_accident_est = df_accident_est.sum().to_frame().transpose()
+        estimation_sample = estimation_sample.sum().to_frame().transpose()
     print('Rows of estimation sample after collapsing by equal mixing: ')
-    print(len(df_accident_est.index))
+    print(len(estimation_sample.index))
     if 'all' not in equal_mixing:
         # toss observations where there are no (one-vehicle, drunk) or no (one-vehicle, sober) crashes [won't converge otherwise]
-        df_accident_est['a_miss'] = 0
+        estimation_sample['a_miss'] = 0
         for dt in range(1,num_driver_types+1): 
-            df_accident_est.loc[df_accident_est['a_' + str(dt)] == 0,'a_miss'] = 1
-        df_accident_est = df_accident_est[df_accident_est['a_miss'] == 0]
-        df_accident_est = df_accident_est.drop(columns=['a_miss'])
+            estimation_sample.loc[estimation_sample['a_' + str(dt)] == 0,'a_miss'] = 1
+        estimation_sample = estimation_sample[estimation_sample['a_miss'] == 0]
+        estimation_sample = estimation_sample.drop(columns=['a_miss'])
         print('Rows of estimation sample after tossing out rows with zero single-car observations of either type: ')
-        print(len(df_accident_est.index))
+        print(len(estimation_sample.index))
     
-    if summarize_sample == True:        
-        print('Final estimation sample: ')
-        print(df_accident_est.describe())
-    
+    print('Final estimation sample: ')
+    print(estimation_sample.describe())
+
     end = time.time()
     print("Time to build estimation sample: " + str(end-start))
-    return df_accident_est
+    return estimation_sample
 
-# code for testing
-#test = get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, last_year=1993)
     
 def lnfactorial(n):
     n_calc = int(n)

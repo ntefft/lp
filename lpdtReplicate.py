@@ -28,24 +28,27 @@ df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the
 bsreps = 3
 
 # Data for Table 1: Outline of LP Replication Exercise  (can ignore the estimation section, since Table 1 reports summary statistics)
-est_sample = lpdtUtil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year=1983, 
-                last_year=1993,equal_mixing=['weekend'],drinking_definition='police_report_only', 
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident, df_vehicle, df_person, first_year=1983, 
+                last_year=1993,drinking_definition='police_report_only', 
                 bac_threshold=0,state_year_prop_threshold=0,summarize_sample=True)
-
-mod_res = lpdtFit.fit_model(df_accident,df_vehicle,df_person,first_year=1983,last_year=1993,
-                equal_mixing=['weekend'],drinking_definition = 'police_report_only',
-                bac_threshold=0,state_year_prop_threshold=0,bsreps=bsreps,summarize_sample=False)
+mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,equal_mixing=['weekend'],
+                drinking_definition = 'police_report_only',bac_threshold=0,bsreps=bsreps)
 print(mod_res.final_params)
 
 # Data for Table 2: Distribution of police officer judgement of alcohol involvement and BAC test results (see section "Cross-tab for Table 2")
-mod_res = lpdtFit.fit_model(df_accident,df_vehicle,df_person,first_year=1983,last_year=1993,
-                                equal_mixing=['year','state','weekend','hour'],
-                                drinking_definition = 'any_evidence',
-                                bac_threshold=0.13,state_year_prop_threshold=0,bsreps=bsreps)
+mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,
+                            equal_mixing=['year','state','weekend','hour'],
+                            drinking_definition = 'any_evidence',bac_threshold=0,bsreps=bsreps)
 print(mod_res.final_params)
 
-
-
+# TEST EXAMPLE
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident, df_vehicle, df_person, first_year=1983, 
+                last_year=1993,drinking_definition='any_evidence', 
+                bac_threshold=0,state_year_prop_threshold=0.13,summarize_sample=True)
+mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,
+                            equal_mixing=['year','state','weekend','hour'],
+                            drinking_definition = 'any_evidence',bac_threshold=0,bsreps=bsreps)
+print(mod_res.final_params)
 
 
 ## EXAMPLE REGULAR ESTIMATION

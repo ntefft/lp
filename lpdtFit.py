@@ -8,16 +8,12 @@ import numpy, time # import packages
 import lpdtUtil
 from statsmodels.base.model import GenericLikelihoodModel
 
-def fit_model(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
-                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
-                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, bsreps=100, mirep=0, summarize_sample=False):           
+def fit_model(analytic_sample, df_vehicle, df_person, 
+              equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
+              bac_threshold = 0.08, bsreps=100, mirep=0):           
     
-    est_sample = lpdtUtil.get_lpdt_estimation_sample(df_accident, df_vehicle, df_person, first_year, last_year, earliest_hour, 
-                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, mirep, summarize_sample)        
-    
-    #A.to_csv('A.csv')
-    #A = pandas.read_csv('A_test.csv') # testing output from Stata to see if ML routine is the same...it is
-    #A.set_index(['hour','year','state','weekend'],inplace=True) # set the index  
+    est_sample = lpdtUtil.get_estimation_sample(analytic_sample, df_vehicle, df_person, 
+                                equal_mixing,drinking_definition, bac_threshold, mirep)
     
     mod = Lpdt(est_sample)
     start = time.time()
@@ -52,8 +48,11 @@ def fit_model_mi(df_accident, df_vehicle, df_person, first_year=2017, last_year=
     mi_df_resid = 0
     # loop over mi replicates and estimate model
     for i in range(0,mireps):
-        res = fit_model(df_accident, df_vehicle, df_person, first_year, last_year, earliest_hour, 
-                               latest_hour, equal_mixing, drinking_definition, bac_threshold, state_year_prop_threshold, bsreps, mirep=(i+1))
+        analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,first_year,
+                        last_year,earliest_hour,latest_hour,drinking_definition,bac_threshold, 
+                        state_year_prop_threshold,mirep=(i+1),summarize_sample=False)
+        res = fit_model(analytic_sample,df_vehicle,df_person,equal_mixing, 
+                        drinking_definition,bac_threshold,bsreps,mirep=(i+1))
         res_params[i] = res.final_params
         mi_res[:,0] += res_params[i,:,0]/mireps # add estimate to running mean of estimates
         mi_llf += res.llf
