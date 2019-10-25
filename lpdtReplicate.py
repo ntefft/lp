@@ -5,7 +5,7 @@ Created on Wed May 15 11:37:00 2019
 @author: ntefft
 """
 
-import os, sys, pandas, numpy # import packages
+import os, sys, pandas # import packages
 import lpdtFit
 
 # path for Spyder or Jupyter Notebooks
@@ -27,57 +27,30 @@ df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the
 # set some overall parameters
 bsreps = 3
 
-# Data for Table 1: Outline of LP Replication Exercise  (can ignore the estimation section, since Table 1 reports summary statistics)
-analytic_sample = lpdtUtil.get_analytic_sample(df_accident, df_vehicle, df_person, first_year=1983, 
-                last_year=1993,drinking_definition='police_report_only', 
-                bac_threshold=0,state_year_prop_threshold=0,summarize_sample=True)
-mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,equal_mixing=['weekend'],
-                drinking_definition = 'police_report_only',bac_threshold=0,bsreps=bsreps)
+# EXAMPLE REGULAR ESTIMATION
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+                    bac_threshold=0,state_year_prop_threshold=0.13,mirep=False,summarize_sample=True)
+mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,['year','state','weekend','hour'],bsreps)
 print(mod_res.final_params)
-
-# Data for Table 2: Distribution of police officer judgement of alcohol involvement and BAC test results (see section "Cross-tab for Table 2")
-mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,
-                            equal_mixing=['year','state','weekend','hour'],
-                            drinking_definition = 'any_evidence',bac_threshold=0,bsreps=bsreps)
-print(mod_res.final_params)
-
-# TEST EXAMPLE
-analytic_sample = lpdtUtil.get_analytic_sample(df_accident, df_vehicle, df_person, first_year=1983, 
-                last_year=1993,drinking_definition='any_evidence', 
-                bac_threshold=0,state_year_prop_threshold=0.13,summarize_sample=True)
-mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,
-                            equal_mixing=['year','state','weekend','hour'],
-                            drinking_definition = 'any_evidence',bac_threshold=0,bsreps=bsreps)
-print(mod_res.final_params)
-
-
-## EXAMPLE REGULAR ESTIMATION
-#mod_results = lpdtFit.fit_model(df_accident, df_vehicle, df_person, 
-#                    first_year=1983, 
-#                    last_year=1993, 
-##                    equal_mixing=['hour'], 
-#                    equal_mixing=['year','state','weekend','hour'], 
-##                    drinking_definition='police_report_primary', 
-#                    drinking_definition = 'bac_test_primary',                                     
-##                    bac_threshold = 0.1, 
-#                    bac_threshold = 0, 
-#                    state_year_prop_threshold = 0.13,
-##                    state_year_prop_threshold = 0.12, # closest restriction to L&P's sample size
-#                    bsreps=3)
-#print(mod_results.final_params)
-
-
 
 # EXAMPLE MULTIPLE IMPUTATION ESTIMATION
-mod_results = lpdtFit.fit_model_mi(df_accident, df_vehicle, df_person, 
-                    first_year=1983, 
-                    last_year=1993, 
-#                    equal_mixing=['hour'], 
-                    equal_mixing=['year','state','weekend','hour'],
-                    drinking_definition = 'bac_test_primary',                                     
-#                    bac_threshold = 0.1, 
-                    bac_threshold = 0,
-                    bsreps=3)
+mod_results = lpdtFit.fit_model_mi(df_accident,df_vehicle,df_person,1983,1993,20,4,['year','state','weekend','hour'],'any_evidence',
+                                   bac_threshold=0,state_year_prop_threshold=0.13,bsreps=bsreps,mireps=10)
 print(mod_results.mi_params)
 print(mod_results.mi_llf)
 print(mod_results.mi_df_resid)
+
+# Data for Table 1: Outline of LP Replication Exercise  (can ignore the estimation section, since Table 1 reports summary statistics)
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'police_report_only',
+                    bac_threshold=0,state_year_prop_threshold=0.13,mirep=False,summarize_sample=True)
+
+# Data for bottom of Table 1: Outline of LP Replication Exercise  (definition has changed to definition 5, which runs the supplemental analysis, so need only look at the section "FOR BOTTOM HALF OF TABLE 1" )
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+                    bac_threshold=0,state_year_prop_threshold=0.13,mirep=False,summarize_sample=True)
+
+# Data for Table 2: Distribution of police officer judgement of alcohol involvement and BAC test results (see section "Cross-tab for Table 2")
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
+                    bac_threshold=0,state_year_prop_threshold=0.13,mirep=False,summarize_sample=True)
+
+
+

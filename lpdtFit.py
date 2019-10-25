@@ -8,12 +8,10 @@ import numpy, time # import packages
 import lpdtUtil
 from statsmodels.base.model import GenericLikelihoodModel
 
-def fit_model(analytic_sample, df_vehicle, df_person, 
-              equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
-              bac_threshold = 0.08, bsreps=100, mirep=0):           
+def fit_model(analytic_sample,df_vehicle,df_person,equal_mixing=['year','state','weekend','hour'],bsreps=100):           
     
-    est_sample = lpdtUtil.get_estimation_sample(analytic_sample, df_vehicle, df_person, 
-                                equal_mixing,drinking_definition, bac_threshold, mirep)
+    est_sample = lpdtUtil.get_estimation_sample(analytic_sample,df_vehicle,df_person,equal_mixing,analytic_sample.drinking_definition,
+                                                analytic_sample.bac_threshold,analytic_sample.mirep)
     
     mod = Lpdt(est_sample)
     start = time.time()
@@ -51,8 +49,7 @@ def fit_model_mi(df_accident, df_vehicle, df_person, first_year=2017, last_year=
         analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,first_year,
                         last_year,earliest_hour,latest_hour,drinking_definition,bac_threshold, 
                         state_year_prop_threshold,mirep=(i+1),summarize_sample=False)
-        res = fit_model(analytic_sample,df_vehicle,df_person,equal_mixing, 
-                        drinking_definition,bac_threshold,bsreps,mirep=(i+1))
+        res = fit_model(analytic_sample,df_vehicle,df_person,equal_mixing,bsreps)
         res_params[i] = res.final_params
         mi_res[:,0] += res_params[i,:,0]/mireps # add estimate to running mean of estimates
         mi_llf += res.llf

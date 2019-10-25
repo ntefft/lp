@@ -33,7 +33,7 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
     # impaired_vs_sober: Legal impairment based on tested BAC, compared against not drinking (intermediate values dropped...this is the supplemental analysis in LP)
     
     bac_threshold_scaled = bac_threshold*100 # need to scale the threshold to match how the data are stored
-    if mirep == 0:
+    if mirep == False:
         df_driver_bac = df_veh_driver['alcohol_test_result']
     else:
         df_driver_bac = df_veh_driver['mibac' + str(mirep)]
@@ -64,7 +64,7 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
     elif drinking_definition == 'impaired_vs_sober':
         df_driver_drink_status = pandas.Series(index=df_veh_driver.index)
         df_driver_drink_status.loc[(df_driver_bac==0) | (df_veh_driver['dr_drink']==0)] = 0
-        df_driver_drink_status.loc[(df_driver_bac>=bac_threshold_scaled) & (df_veh_driver['dr_drink']!=0)] = 1
+        df_driver_drink_status.loc[(df_driver_bac>=bac_threshold_scaled) & (~df_driver_bac.isna()) & (df_veh_driver['dr_drink']!=0)] = 1
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     
     return df_driver_drink_status
@@ -80,7 +80,6 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition,
     # collect missing info about the driver
     df_dr_miss = pandas.DataFrame(index=df_driver.index)
     df_dr_miss['miss_age'] = (df_driver['age'].isna()) | (df_driver['age'] < 13) # exclude child drivers
-#    df_dr_miss['miss_age'] = df_driver['age'].isna()
     df_dr_miss['miss_sex'] = df_driver['sex'].isna()
     
     # collect missing info about the vehicle
@@ -111,18 +110,19 @@ def accident_missing_data(df_accident,df_vehicle,df_driver, drinking_definition,
 
 def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
                         latest_hour=4, drinking_definition='any_evidence', bac_threshold = 0.08, 
-                        state_year_prop_threshold = 0.13, mirep=0,summarize_sample=True):
+                        state_year_prop_threshold = 0.13, mirep=False,summarize_sample=True):
 #    first_year=1983
 #    last_year=1993
 #    earliest_hour=20
 #    latest_hour=4
 #    equal_mixing=['year','state','weekend','hour']
-#    drinking_definition='police_report_only'
-#    bac_threshold = 0.08
+##    drinking_definition='police_report_only'
+#    drinking_definition='impaired_vs_sober'
+#    bac_threshold = 0
 #    state_year_prop_threshold = 0.13
-#    mirep=0
+#    mirep=False
 #    summarize_sample=True
-#   
+   
     start = time.time()
     print("Building the analytic sample...")
     if summarize_sample == True:
@@ -205,8 +205,29 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
         tmp_driver['bac_gt0_na'] = tmp_driver['alcohol_test_result']
         tmp_driver.loc[tmp_driver['bac_gt0_na']>0,'bac_gt0_na'] = 1
         tmp_driver.loc[tmp_driver['bac_gt0_na'].isna(),'bac_gt0_na'] = 2
-        pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True)
-        pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True).apply(lambda r: r/len(tmp_driver))
+        print(pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True))
+        print(pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True).apply(lambda r: r/len(tmp_driver)))
+       
+    # calculate how many would be dropped if the following were followed:
+#        page 1214, paragraph 2: "we exclude all crashes occurring in states that do not test at least 95 percent of those judged to have been drinking 
+#		by the police in our sample in that year (regardless of whether the motorist in question was tested). This requirement excludes more than 80 percent 
+#		of the fatal crashes in the sample."
+    if drinking_definition == 'impaired_vs_sober':
+        tmp_driver_veh = get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]).merge(df_vehicle,how='inner',on=['year','st_case','veh_no'])
+        tmp_driver_veh['at_flag'] = numpy.nan
+        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (tmp_driver_veh['alcohol_test_result'].isna())] = 0
+        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (~tmp_driver_veh['alcohol_test_result'].isna())] = 1
+        df_acc_at_flag = tmp_driver_veh[['at_flag']].groupby(['year','st_case']).min()
+        df_acc_at_flag_plus = df_accident_est[['state']].merge(df_acc_at_flag,how='inner',on=['year','st_case'])
+        df_st_yr_prop_at = df_acc_at_flag_plus[['state','at_flag']].groupby(['year','state']).mean()
+        df_st_yr_prop_at['at_flag_prop'] = df_st_yr_prop_at['at_flag'] 
+        df_acc_at_flag_plus = df_acc_at_flag_plus.merge(df_st_yr_prop_at['at_flag_prop'],how='inner',on=['year','state'])
+        if summarize_sample == True:  
+            print('Proportion of crashes occurring in states that do not test at least 95 percent of those judged to have been drinking: ')
+            print(len(df_acc_at_flag_plus.loc[(df_acc_at_flag_plus['at_flag_prop']<0.95)])/len(df_acc_at_flag_plus)) 
+        df_accident_est = df_accident_est.reset_index().set_index(['year','state']) # reset index in order to select by state and year
+        df_accident_est = df_accident_est[df_accident_est.index.isin(df_st_yr_prop_at.loc[df_st_yr_prop_at['at_flag_prop']>=0.95].index)]
+        df_accident_est = df_accident_est.reset_index().set_index(['year','st_case'])
         
     # get dataframe of booleans indicating whether each variable has missing data (or all of them)
     df_acc_miss_flag = accident_missing_data(df_accident_est,
@@ -219,7 +240,7 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
     
     df_acc_miss_flag_plus = df_accident_est[['state']].merge(df_acc_miss_flag,how='inner',on=['year','st_case'])
     df_st_yr_prop_miss = df_acc_miss_flag_plus[['state','miss_any']].groupby(['year','state']).mean()
-    
+        
     # only keep accidents in state-years that have a proportion of missing data that is above the given threshold
     df_accident_est = df_accident_est.reset_index().set_index(['year','state']) # reset index in order to select by state and year
     df_accident_est = df_accident_est[df_accident_est.index.isin(df_st_yr_prop_miss.loc[df_st_yr_prop_miss['miss_any']<=state_year_prop_threshold].index)]
@@ -233,13 +254,21 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
     if summarize_sample == True:    
         print('Count of accidents after state-year missing data sample restriction: ')
         print(len(df_accident_est.index))
-        
+
+
+
+    
     # generate weekend variable
     df_accident_est['weekend'] = ((df_accident_est['day_week'] == 6) & (df_accident_est['hour'] >= 20)) | (df_accident_est['day_week'] == 7) | ((df_accident_est['day_week'] == 1) & (df_accident_est['hour'] <= 4))
     if summarize_sample == True:    
         print('Count of weekdays vs weekend days: ')
         print(df_accident_est['weekend'].value_counts())
         
+    # Add attributes needed for building the estimation sample 
+    df_accident_est.drinking_definition = drinking_definition
+    df_accident_est.bac_threshold = bac_threshold
+    df_accident_est.mirep = mirep
+    
     end = time.time()
     print("Time to build analytic sample: " + str(end-start))
     return df_accident_est
@@ -249,7 +278,7 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
 
 def get_estimation_sample(analytic_sample, df_vehicle, df_person, 
                           equal_mixing=['year','state','weekend','hour'], 
-                          drinking_definition='any_evidence', bac_threshold = 0.08, mirep=0):
+                          drinking_definition='any_evidence', bac_threshold = 0.08, mirep=False):
 
     start = time.time()
     print("Building the estimation sample...")
