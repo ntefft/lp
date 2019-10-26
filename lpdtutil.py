@@ -122,7 +122,7 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
 #    state_year_prop_threshold = 0.13
 #    mirep=False
 #    summarize_sample=True
-   
+#   
     start = time.time()
     print("Building the analytic sample...")
     if summarize_sample == True:
@@ -217,15 +217,14 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
         tmp_driver_veh['at_flag'] = numpy.nan
         tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (tmp_driver_veh['alcohol_test_result'].isna())] = 0
         tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (~tmp_driver_veh['alcohol_test_result'].isna())] = 1
-        df_acc_at_flag = tmp_driver_veh[['at_flag']].groupby(['year','st_case']).min()
-        df_acc_at_flag_plus = df_accident_est[['state']].merge(df_acc_at_flag,how='inner',on=['year','st_case'])
-        df_st_yr_prop_at = df_acc_at_flag_plus[['state','at_flag']].groupby(['year','state']).mean()
-        df_st_yr_prop_at['at_flag_prop'] = df_st_yr_prop_at['at_flag'] 
-        df_acc_at_flag_plus = df_acc_at_flag_plus.merge(df_st_yr_prop_at['at_flag_prop'],how='inner',on=['year','state'])
+        df_acc_at_flag = tmp_driver_veh.merge(df_accident_est[['state']],how='inner',on=['year','st_case'])
+        df_acc_at_flag = df_acc_at_flag.reset_index().set_index(['year','st_case','state'])
+        df_st_yr_prop_at = df_acc_at_flag[['at_flag']].groupby(['year','state']).mean()
+        df_st_yr_prop_at['at_flag_prop'] = df_st_yr_prop_at['at_flag']
+        df_accident_est = df_accident_est.reset_index().set_index(['year','state']) # reset index in order to select by state and year
         if summarize_sample == True:  
             print('Proportion of crashes occurring in states that do not test at least 95 percent of those judged to have been drinking: ')
-            print(len(df_acc_at_flag_plus.loc[(df_acc_at_flag_plus['at_flag_prop']<0.95)])/len(df_acc_at_flag_plus)) 
-        df_accident_est = df_accident_est.reset_index().set_index(['year','state']) # reset index in order to select by state and year
+            print(len(df_accident_est[df_accident_est.index.isin(df_st_yr_prop_at.loc[df_st_yr_prop_at['at_flag_prop']<0.95].index)])/len(df_accident_est)) 
         df_accident_est = df_accident_est[df_accident_est.index.isin(df_st_yr_prop_at.loc[df_st_yr_prop_at['at_flag_prop']>=0.95].index)]
         df_accident_est = df_accident_est.reset_index().set_index(['year','st_case'])
         
