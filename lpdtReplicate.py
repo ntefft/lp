@@ -53,5 +53,12 @@ analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,
 analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mirep=False,summarize_sample=True)
 
+# Data for Table 4 (top portion)
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
+                    bac_threshold=0,state_year_prop_threshold=0.2,mirep=False,summarize_sample=True)
 
-
+# Data for Table 4 (bottom portion)
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+                    bac_threshold=0,state_year_prop_threshold=0.2,mirep=False,summarize_sample=True)
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+                    bac_threshold=0,state_year_prop_threshold=0.13,mirep=False,summarize_sample=True)

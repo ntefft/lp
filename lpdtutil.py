@@ -117,9 +117,10 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
 #    latest_hour=4
 #    equal_mixing=['year','state','weekend','hour']
 ##    drinking_definition='police_report_only'
-#    drinking_definition='impaired_vs_sober'
+#    drinking_definition='any_evidence'
 #    bac_threshold = 0
-#    state_year_prop_threshold = 0.13
+##    state_year_prop_threshold = 0.13
+#    state_year_prop_threshold = 0.2
 #    mirep=False
 #    summarize_sample=True
 #   
@@ -254,8 +255,29 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
         print('Count of accidents after state-year missing data sample restriction: ')
         print(len(df_accident_est.index))
 
-
-
+    # TABLE 4 OF L&P REPLICATION
+    if summarize_sample == True:    
+        print('Count of one- and two-car accidents: ')
+        print(df_accident_est['acc_veh_count'].value_counts())
+        tmp_driver = get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)])
+        tmp_vehicle = df_vehicle[df_vehicle.index.isin(tmp_driver.index)]
+        tmp_driver_veh = get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]).merge(df_vehicle,how='inner',on=['year','st_case','veh_no'])
+        tmp_driver_veh['drink_status'] = veh_dr_drinking_status(tmp_vehicle, tmp_driver, drinking_definition, bac_threshold, mirep)
+        tmp_driver_veh['male'] = tmp_driver_veh['sex']==1
+        tmp_driver_veh['age_lt25'] = tmp_driver_veh['age'] < 25        
+        tmp_driver_veh['minor_blemishes'] = tmp_driver_veh['prev_acc'] + tmp_driver_veh['prev_spd'] + tmp_driver_veh['prev_oth']
+        tmp_driver_veh['major_blemishes'] = tmp_driver_veh['prev_sus'] + tmp_driver_veh['prev_dwi']
+        tmp_driver_veh['bad_record'] = (tmp_driver_veh['minor_blemishes']>=2) | (tmp_driver_veh['major_blemishes']>=1)
+        tmp_driver_veh['male_and_drinking'] = (tmp_driver_veh['male']==1) & (tmp_driver_veh['drink_status']==1)
+        tmp_driver_veh['age_lt25_and_drinking'] = (tmp_driver_veh['age_lt25']==1) & (tmp_driver_veh['drink_status']==1)
+        tmp_driver_veh['bad_record_and_drinking'] = (tmp_driver_veh['bad_record']==1) & (tmp_driver_veh['drink_status']==1)
+        print('Proportions of all drivers in fatal crashes: ')
+        print(tmp_driver_veh[['drink_status','male','age_lt25','bad_record','male_and_drinking',
+                              'age_lt25_and_drinking','bad_record_and_drinking']].mean())
+        print('Percentage of fatal one-car crashes with zero or one drinking driver: ')
+        print(tmp_driver_veh[tmp_driver_veh.index.droplevel('veh_no').isin(df_accident_est.loc[df_accident_est['acc_veh_count']==1].index)]['drink_status'].groupby(['year','st_case']).mean().value_counts()/len(df_accident_est.loc[df_accident_est['acc_veh_count']==1]))
+        print('Percentage of fatal two-car crashes with zero, one, or two drinking drivers: ')
+        print(tmp_driver_veh[tmp_driver_veh.index.droplevel('veh_no').isin(df_accident_est.loc[df_accident_est['acc_veh_count']==2].index)]['drink_status'].groupby(['year','st_case']).mean().value_counts()/len(df_accident_est.loc[df_accident_est['acc_veh_count']==2]))
     
     # generate weekend variable
     df_accident_est['weekend'] = ((df_accident_est['day_week'] == 6) & (df_accident_est['hour'] >= 20)) | (df_accident_est['day_week'] == 7) | ((df_accident_est['day_week'] == 1) & (df_accident_est['hour'] <= 4))
