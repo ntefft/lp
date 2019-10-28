@@ -37,7 +37,7 @@ def fit_model(analytic_sample,df_vehicle,df_person,equal_mixing=['year','state',
     return res
 
 def fit_model_mi(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
-                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='any_evidence', 
+                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='bac_primary', 
                                bac_threshold = 0.08, state_year_prop_threshold = 0.13, bsreps=100, mireps=10):           
     
     res_params = numpy.zeros((mireps, 3, 2))
