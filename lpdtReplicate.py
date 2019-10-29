@@ -25,7 +25,7 @@ df_person = pandas.read_csv('data\\df_person.csv')
 df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the index
 
 # set some overall parameters
-#bsreps = 3
+#bsreps = 2
 bsreps = 100
 sy_p_t = 0.13 # the value that best approximates L&P's results
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary'] # drinking definitions 1 through 4
@@ -93,21 +93,21 @@ res_fmt_df.T.to_excel('results\\table5_panel1.xlsx') # Note: should format as te
 # TABLE 5, PANEL 2
 res_fmt = list() # list of results, formatted
 print("Estimating model for drinking definition: any_evidence") 
-analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
-                    bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mirep=False,summarize_sample=False)
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+                    bac_threshold=0.1,state_year_prop_threshold=1,mirep=False,summarize_sample=False)
 mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,['year','state','weekend','hour'],bsreps)
 res_fmt.append([drink_def,round(mod_res.final_params[0][0],2),'('+str(round(mod_res.final_params[0][1],2))+')',
              round(mod_res.final_params[1][0],2),'('+str(round(mod_res.final_params[1][1],2))+')',mod_res.df_resid])
 print("Estimating multiple imputation model:") 
-mod_res = lpdtFit.fit_model_mi(df_accident,df_vehicle,df_person,1983,1993,20,4,['year','state','weekend','hour'],'bac_test_primary',
-                    bac_threshold=0.1,state_year_prop_threshold=sy_p_t,bsreps=bsreps,mireps=10)
+mod_res = lpdtFit.fit_model_mi(df_accident,df_vehicle,df_person,1983,1993,20,4,['year','state','weekend','hour'],'impaired_vs_sober',
+                    bac_threshold=0.1,state_year_prop_threshold=1,bsreps=bsreps,mireps=10)
 res_fmt.append(['multiple_imputation',round(mod_res.mi_params[0][0],2),'('+str(round(mod_res.mi_params[0][1],2))+')',
                  round(mod_res.mi_params[1][0],2),'('+str(round(mod_res.mi_params[1][1],2))+')',mod_res.mi_df_resid])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','residual_dof'])
 res_fmt_df.T.to_excel('results\\table5_panel2.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX TABLE 1
-equal_mixings = [[],[hour],[year,hour],['year','weekend','hour'],['year','state','hour'],['year','state','weekend','hour']]
+equal_mixings = [[],['hour'],['year','hour'],['year','weekend','hour'],['year','state','hour'],['year','state','weekend','hour']]
 for drink_def in drink_defs: 
     res_fmt = list() # list of results, formatted
     for eq_mix in equal_mixings: 

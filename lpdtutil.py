@@ -34,9 +34,9 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
     
     bac_threshold_scaled = bac_threshold*100 # need to scale the threshold to match how the data are stored
     if mirep == False:
-        df_driver_bac = df_veh_driver['alcohol_test_result']
+        driver_bac = df_veh_driver['alcohol_test_result']
     else:
-        df_driver_bac = df_veh_driver['mibac' + str(mirep)]
+        driver_bac = df_veh_driver['mibac' + str(mirep)]
     
 #    if drinking_definition == 'mi':
 #        df_driver_drink_status = df_veh_driver[['mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']] > bac_threshold_scaled        
@@ -52,19 +52,19 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
     elif drinking_definition == 'police_report_primary':
         df_driver_drink_status = df_veh_driver['drinking']
         df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
-        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_driver_bac==0)] = 0
-        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (df_driver_bac>bac_threshold_scaled)] = 1                 
+        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (driver_bac==0)] = 0
+        df_driver_drink_status.loc[(df_driver_drink_status.isna()) & (driver_bac>bac_threshold_scaled)] = 1                 
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'bac_test_primary':
         df_driver_drink_status = df_veh_driver['drinking']
-        df_driver_drink_status.loc[df_driver_bac==0] = 0
-        df_driver_drink_status.loc[df_driver_bac>bac_threshold_scaled] = 1
+        df_driver_drink_status.loc[driver_bac==0] = 0
+        df_driver_drink_status.loc[driver_bac>bac_threshold_scaled] = 1
         df_driver_drink_status.loc[df_driver_drink_status.isin([8,9])] = numpy.nan
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     elif drinking_definition == 'impaired_vs_sober':
         df_driver_drink_status = pandas.Series(index=df_veh_driver.index)
-        df_driver_drink_status.loc[(df_driver_bac==0) | (df_veh_driver['dr_drink']==0)] = 0
-        df_driver_drink_status.loc[(df_driver_bac>=bac_threshold_scaled) & (~df_driver_bac.isna()) & (df_veh_driver['dr_drink']!=0)] = 1
+        df_driver_drink_status.loc[(driver_bac==0) | (df_veh_driver['dr_drink']==0)] = 0
+        df_driver_drink_status.loc[(driver_bac>=bac_threshold_scaled) & (~driver_bac.isna()) & (df_veh_driver['dr_drink']!=0)] = 1
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
     
     return df_driver_drink_status
@@ -200,10 +200,14 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
         tmp_all_driver = get_driver(df_person)
         print(len(tmp_all_driver.loc[tmp_all_driver['drinking'].isin([8,9]) | tmp_all_driver['drinking'].isna()])/len(tmp_all_driver))
         print('Count and proportion of drivers missing BAC test after vehicle count sample restriction: ')
-        print(len(tmp_driver.loc[tmp_driver['alcohol_test_result'].isna()]))
-        print(len(tmp_driver.loc[tmp_driver['alcohol_test_result'].isna()])/len(tmp_driver))
+        if mirep == False:
+            tmp_driver['driver_bac'] = tmp_driver['alcohol_test_result']
+        else:
+            tmp_driver['driver_bac'] = tmp_driver['mibac' + str(mirep)]
+        print(len(tmp_driver.loc[tmp_driver['driver_bac'].isna()]))
+        print(len(tmp_driver.loc[tmp_driver['driver_bac'].isna()])/len(tmp_driver))
         print('Cross-tabulation of police evaluation and BAC test result: ')
-        tmp_driver['bac_gt0_na'] = tmp_driver['alcohol_test_result']
+        tmp_driver['bac_gt0_na'] = tmp_driver['driver_bac']
         tmp_driver.loc[tmp_driver['bac_gt0_na']>0,'bac_gt0_na'] = 1
         tmp_driver.loc[tmp_driver['bac_gt0_na'].isna(),'bac_gt0_na'] = 2
         print(pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True))
@@ -216,8 +220,12 @@ def get_analytic_sample(df_accident, df_vehicle, df_person, first_year=2017, las
     if drinking_definition == 'impaired_vs_sober':
         tmp_driver_veh = get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(df_accident_est.index)]).merge(df_vehicle,how='inner',on=['year','st_case','veh_no'])
         tmp_driver_veh['at_flag'] = numpy.nan
-        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (tmp_driver_veh['alcohol_test_result'].isna())] = 0
-        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (~tmp_driver_veh['alcohol_test_result'].isna())] = 1
+        if mirep == False:
+            tmp_driver_veh['driver_bac'] = tmp_driver_veh['alcohol_test_result']
+        else:
+            tmp_driver_veh['driver_bac'] = tmp_driver_veh['mibac' + str(mirep)]
+        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (tmp_driver_veh['driver_bac'].isna())] = 0
+        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (~tmp_driver_veh['driver_bac'].isna())] = 1
         df_acc_at_flag = tmp_driver_veh.merge(df_accident_est[['state']],how='inner',on=['year','st_case'])
         df_acc_at_flag = df_acc_at_flag.reset_index().set_index(['year','st_case','state'])
         df_st_yr_prop_at = df_acc_at_flag[['at_flag']].groupby(['year','state']).mean()

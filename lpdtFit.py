@@ -48,7 +48,7 @@ def fit_model_mi(df_accident, df_vehicle, df_person, first_year=2017, last_year=
     for i in range(0,mireps):
         analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,first_year,
                         last_year,earliest_hour,latest_hour,drinking_definition,bac_threshold, 
-                        state_year_prop_threshold,mirep=(i+1),summarize_sample=False)
+                        state_year_prop_threshold,(i+1),False)
         res = fit_model(analytic_sample,df_vehicle,df_person,equal_mixing,bsreps)
         res_params[i] = res.final_params
         mi_res[:,0] += res_params[i,:,0]/mireps # add estimate to running mean of estimates
