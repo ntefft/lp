@@ -87,6 +87,44 @@ mod_res = lpdtFit.fit_model_mi(df_accident,df_vehicle,df_person,1983,1993,20,4,[
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,bsreps=bsreps,mireps=10)
 res_fmt.append(['multiple_imputation',round(mod_res.mi_params[0][0],2),'('+str(round(mod_res.mi_params[0][1],2))+')',
                  round(mod_res.mi_params[1][0],2),'('+str(round(mod_res.mi_params[1][1],2))+')',mod_res.mi_df_resid])
-
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','residual_dof'])
 res_fmt_df.T.to_excel('results\\table5_panel1.xlsx') # Note: should format as text after opening Excel file
+
+# TABLE 5, PANEL 2
+res_fmt = list() # list of results, formatted
+print("Estimating model for drinking definition: any_evidence") 
+analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
+                    bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mirep=False,summarize_sample=False)
+mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,['year','state','weekend','hour'],bsreps)
+res_fmt.append([drink_def,round(mod_res.final_params[0][0],2),'('+str(round(mod_res.final_params[0][1],2))+')',
+             round(mod_res.final_params[1][0],2),'('+str(round(mod_res.final_params[1][1],2))+')',mod_res.df_resid])
+print("Estimating multiple imputation model:") 
+mod_res = lpdtFit.fit_model_mi(df_accident,df_vehicle,df_person,1983,1993,20,4,['year','state','weekend','hour'],'bac_test_primary',
+                    bac_threshold=0.1,state_year_prop_threshold=sy_p_t,bsreps=bsreps,mireps=10)
+res_fmt.append(['multiple_imputation',round(mod_res.mi_params[0][0],2),'('+str(round(mod_res.mi_params[0][1],2))+')',
+                 round(mod_res.mi_params[1][0],2),'('+str(round(mod_res.mi_params[1][1],2))+')',mod_res.mi_df_resid])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','residual_dof'])
+res_fmt_df.T.to_excel('results\\table5_panel2.xlsx') # Note: should format as text after opening Excel file
+
+# APPENDIX TABLE 1
+equal_mixings = [[],[hour],[year,hour],['year','weekend','hour'],['year','state','hour'],['year','state','weekend','hour']]
+for drink_def in drink_defs: 
+    res_fmt = list() # list of results, formatted
+    for eq_mix in equal_mixings: 
+        print("Estimating model for drinking definition: " + drink_def) 
+        analytic_sample = lpdtUtil.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
+                            bac_threshold=0,state_year_prop_threshold=sy_p_t,mirep=False,summarize_sample=False)
+        mod_res = lpdtFit.fit_model(analytic_sample,df_vehicle,df_person,eq_mix,bsreps)
+        res_fmt.append([eq_mix,round(mod_res.final_params[0][0],2),'('+str(round(mod_res.final_params[0][1],2))+')',
+                     round(mod_res.final_params[1][0],2),'('+str(round(mod_res.final_params[1][1],2))+')',mod_res.df_resid])
+    res_fmt_df = pandas.DataFrame(res_fmt,columns=['eq_mix','theta','theta_se','lambda','lambda_se','residual_dof'])
+    res_fmt_df.T.to_excel('results\\tableA1_panel_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
+res_fmt = list() # list of results, formatted
+for eq_mix in equal_mixings: 
+    print("Estimating multiple imputation model:") 
+    mod_res = lpdtFit.fit_model_mi(df_accident,df_vehicle,df_person,1983,1993,20,4,eq_mix,'bac_test_primary',
+                        bac_threshold=0,state_year_prop_threshold=sy_p_t,bsreps=bsreps,mireps=10)
+    res_fmt.append([eq_mix,round(mod_res.mi_params[0][0],2),'('+str(round(mod_res.mi_params[0][1],2))+')',
+                     round(mod_res.mi_params[1][0],2),'('+str(round(mod_res.mi_params[1][1],2))+')',mod_res.mi_df_resid])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['eq_mix','theta','theta_se','lambda','lambda_se','residual_dof'])
+res_fmt_df.T.to_excel('results\\tableA1_panel_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
