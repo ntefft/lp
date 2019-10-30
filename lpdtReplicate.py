@@ -6,15 +6,10 @@ Created on Wed May 15 11:37:00 2019
 """
 
 import os, sys, pandas # import packages
-import lpdtFit
 
 # path for Spyder or Jupyter Notebooks
-if os.path.exists(sys.path[0] + '\\Documents\\GitHub\\lpdt'):
-    os.chdir(sys.path[0] + '\\Documents\\GitHub\\lpdt')
-else:
-    os.chdir(sys.path[0])
-    
-import lpdtUtil
+os.chdir(sys.path[0] + '\\Documents\\GitHub\\lpdt')    
+import lpdtUtil, lpdtFit
 
 # read in FARS data
 df_accident = pandas.read_csv('data\\df_accident.csv')
@@ -25,10 +20,10 @@ df_person = pandas.read_csv('data\\df_person.csv')
 df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the index
 
 # set some overall parameters
-#bsreps = 2
-bsreps = 100
-#mireps = 2
-mireps = 10
+bsreps = 2
+#bsreps = 100
+mireps = 2
+#mireps = 10
 sy_p_t = 0.13 # the value that best approximates L&P's results
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary'] # drinking definitions 1 through 4
 if not os.path.exists('results'):
