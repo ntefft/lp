@@ -3,13 +3,15 @@
 Created on Tue May  7 09:52:37 2019
 
 @author: Nathan Tefft
+
+This script connects to the NHTSA's FTP server and retrieves the annual zip files containing the FARS data. The files are stored in a 
+data folder for later extraction.
 """
 
-import ftplib
-import os
-import sys
+# import necessary packages
+import ftplib, os, sys
 
-# change director to GitHub path
+# change working directory to GitHub path
 os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
 
 # connect to NHTSA's FTP server
