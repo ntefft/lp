@@ -1,2 +1,2 @@
-# lpdt
+# lp
 # Testing out the readme
