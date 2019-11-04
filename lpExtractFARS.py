@@ -9,7 +9,7 @@ and the data definitions are harmonized across years. Accident, vehicle, and per
 for later use in the replication.
 """
 # import necessary packages
-import os, sys, numpy, pandas, shutil, us, zipfile # import packages
+import os, sys, numpy, pandas, shutil, us, zipfile
 
 # change working directory to GitHub path
 os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
