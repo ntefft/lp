@@ -122,7 +122,9 @@ for yr in range(firstYear,latestYear+1):
         del vars()['df_' + ft + '_yr']
 
 # summarize the constructed dataframes and save to csv files
+if not os.path.exists('replication\\data'):
+    os.makedirs('replication\\data')
 for dfn in ['df_accident','df_vehicle','df_person']:
     print('Describing dataframe ' + dfn)
     print(vars()[dfn].describe())
-    vars()[dfn].to_csv('data\\' + dfn + '.csv')
+    vars()[dfn].to_csv('replication\\data\\' + dfn + '.csv')

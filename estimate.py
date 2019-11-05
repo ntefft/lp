@@ -6,33 +6,72 @@ Created on Tue Oct  8 13:03:22 2019
 
 This is a collection of functions used to create and estimate the LP model, including for multiple imputation.
 """
-import numpy, time, lpUtil # import packages
+import numpy, time # import packages
 from statsmodels.base.model import GenericLikelihoodModel
 
-# calculates the natural log of the factorial of n (had to build this by hand because I couldn't find an existing python function)
-def lnfactorial(n):
-    n_calc = int(n)
-    lnf = 0
-    for i in range(1,n_calc+1):
-        lnf += numpy.log(i)
-    return lnf
-
-# calculate boostrap standard error from bootstrap estimates
-def bs_se(theta_bs, axis=None):
-    return numpy.power(numpy.divide(numpy.power((numpy.subtract(theta_bs,numpy.divide(theta_bs.sum(axis),numpy.size(theta_bs,axis)))),2).sum(axis),(numpy.size(theta_bs,axis)-1)),0.5)
-
-# fit the LP model using an already constructed analytic sample
-def fit_model(analytic_sample,df_vehicle,df_person,equal_mixing=['year','state','weekend','hour'],bsreps=100):           
-    
+# converts the analytic sample (see the lpUtil.get_analytic_sample function) into a form that can be used in estimation
+def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=False):
     start = time.time()
-    # get the estimation sample
-    est_sample = lpUtil.get_estimation_sample(analytic_sample,df_vehicle,df_person,equal_mixing,analytic_sample.drinking_definition,
-                                                analytic_sample.bac_threshold,analytic_sample.mirep)
+    print("Building the estimation sample...")
+    estimation_sample = analytic_sample.copy()
+    
+    if mirep==False:
+        mirep_suf = ''
+    else:
+        mirep_suf = str(mirep)
+    
+    # reset index for unstacking by veh_no, and keep vehicle count and driver_type
+    estimation_sample['veh_no2'] = estimation_sample.groupby(['year','st_case']).cumcount()+1
+    idx_add_veh_no2 = ['year','st_case','veh_no2']
+    if 'all' not in equal_mixing:
+        idx_add_veh_no2 = equal_mixing + idx_add_veh_no2
+    estimation_sample = estimation_sample.reset_index().set_index(idx_add_veh_no2)[['acc_veh_count','driver_type'+mirep_suf]]
+    estimation_sample = estimation_sample.unstack()    
+    
+    # identify one-car crashes, looping over driver types
+    for dt in range(1,num_driver_types+1): 
+        estimation_sample['a_' + str(dt)] = 0
+        estimation_sample.loc[(estimation_sample['acc_veh_count'][1] == 1) & (estimation_sample['driver_type'+mirep_suf][1] == dt),'a_' + str(dt)] = 1
+
+    # identify two-car crashes, looping over driver types
+    for dt1 in range(1,num_driver_types+1): 
+        for dt2 in range(1,num_driver_types+1): 
+            estimation_sample['a_' + str(dt1) + '_' + str(dt2)] = 0
+            estimation_sample.loc[(estimation_sample['acc_veh_count'][1] == 2) & (estimation_sample['driver_type'+mirep_suf][1] == dt1) & (estimation_sample['driver_type'+mirep_suf][2] == dt2),'a_' + str(dt1) + '_' + str(dt2)] = 1
+            if dt1 > dt2: # combine duplicates and drop duplicated columns
+                estimation_sample['a_' + str(dt2) + '_' + str(dt1)] = estimation_sample['a_' + str(dt2) + '_' + str(dt1)] + estimation_sample['a_' + str(dt1) + '_' + str(dt2)]
+                estimation_sample = estimation_sample.drop(columns=['a_' + str(dt1) + '_' + str(dt2)])
+            
+    # clean up dataset and collapse by equal mixing
+    estimation_sample = estimation_sample.drop(columns=['acc_veh_count','driver_type'+mirep_suf])
+    estimation_sample.columns = estimation_sample.columns.droplevel(level='veh_no2')
+    if 'all' not in equal_mixing:
+        estimation_sample = estimation_sample.groupby(equal_mixing).sum()
+    else:
+        estimation_sample = estimation_sample.sum().to_frame().transpose()
+    print('Rows of estimation sample after collapsing by equal mixing: ')
+    print(len(estimation_sample.index))
+    if 'all' not in equal_mixing:
+        # drop observations where there are no (one-vehicle, drunk) or no (one-vehicle, sober) crashes [model won't converge otherwise]
+        estimation_sample['a_miss'] = 0
+        for dt in range(1,num_driver_types+1): 
+            estimation_sample.loc[estimation_sample['a_' + str(dt)] == 0,'a_miss'] = 1
+        estimation_sample = estimation_sample[estimation_sample['a_miss'] == 0]
+        estimation_sample = estimation_sample.drop(columns=['a_miss'])
+        print('Rows of estimation sample after tossing out rows with zero single-car observations of either type: ')
+        print(len(estimation_sample.index))
+    
+    print('Describing final estimation sample: ')
+    print(estimation_sample.describe())
+
     end = time.time()
     print("Time to build estimation sample: " + str(end-start))
-    
+    return estimation_sample
+
+# fit the LP model using an already constructed analytic sample
+def fit_model(estimation_sample,bsreps=100):           
     start = time.time()
-    mod = Lp(est_sample) # create the model (modified GenericLikelihoodModel)
+    mod = Lp(estimation_sample) # create the model (modified GenericLikelihoodModel)
     res = mod.fit() # fit the model
     res.bootstrap(nrep=bsreps) # get bootstrapped results
     print(mod.exog_names)
@@ -45,7 +84,7 @@ def fit_model(analytic_sample,df_vehicle,df_person,equal_mixing=['year','state',
     # row 0 = theta, row 1 = lambda, row 2 = N
     # column 0 = estimate, column 1 = bootstrapped standard error
     res.final_params = numpy.column_stack((res.params,bs_se(res.bootstrap_results,axis=0)))
-    res.final_params = numpy.vstack([res.final_params,[(1/res.params[1])*(est_sample['a_2'].sum()/est_sample['a_1'].sum()),bs_se((1/res.bootstrap_results[:,1])*(est_sample['a_2'].sum()/est_sample['a_1'].sum()))]])
+    res.final_params = numpy.vstack([res.final_params,[(1/res.params[1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum()),bs_se((1/res.bootstrap_results[:,1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum()))]])
     
     # report relevant model statistics
     print('Parameters (theta, lambda, N): ', res.final_params[:,0])
@@ -57,20 +96,16 @@ def fit_model(analytic_sample,df_vehicle,df_person,equal_mixing=['year','state',
 
 # wrapper around fit_model which implements multiple imputation estimation. Generates estimates for each MI replicate, and then
 # combines the estimates and standard errors
-def fit_model_mi(df_accident, df_vehicle, df_person, first_year=2017, last_year=2017, earliest_hour=20, 
-                               latest_hour=4, equal_mixing=['year','state','weekend','hour'], drinking_definition='bac_primary', 
-                               bac_threshold = 0.08, state_year_prop_threshold = 0.13, bsreps=100, mireps=10):           
-    
+def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps=10):           
     res_params = numpy.zeros((mireps, 3, 2))
     mi_res = numpy.zeros((3, 2))
     mi_llf = 0
     mi_df_resid = 0
     # loop over mi replicates and estimate model for each
     for i in range(0,mireps):
-        analytic_sample = lpUtil.get_analytic_sample(df_accident,df_vehicle,df_person,first_year,
-                        last_year,earliest_hour,latest_hour,drinking_definition,bac_threshold, 
-                        state_year_prop_threshold,(i+1),False)
-        res = fit_model(analytic_sample,df_vehicle,df_person,equal_mixing,bsreps)
+        estimation_sample = get_estimation_sample(analytic_sample,equal_mixing,
+                                                  num_driver_types,mirep=(i+1))
+        res = fit_model(estimation_sample,bsreps)
         res_params[i] = res.final_params
         mi_res[:,0] += res_params[i,:,0]/mireps # add estimate to running mean of estimates, for final mi estimate
         mi_llf += res.llf
@@ -174,3 +209,15 @@ class Lp(GenericLikelihoodModel):
             start_params = [[20*numpy.ones(self.num_driver_types-1)],[20*numpy.ones(self.num_driver_types-1)]]
         
         return super(Lp, self).fit(start_params=start_params, maxiter=maxiter, maxfun=maxfun, **kwds)
+
+# calculates the natural log of the factorial of n (had to build this by hand because I couldn't find an existing python function)
+def lnfactorial(n):
+    n_calc = int(n)
+    lnf = 0
+    for i in range(1,n_calc+1):
+        lnf += numpy.log(i)
+    return lnf
+
+# calculate boostrap standard error from bootstrap estimates
+def bs_se(theta_bs, axis=None):
+    return numpy.power(numpy.divide(numpy.power((numpy.subtract(theta_bs,numpy.divide(theta_bs.sum(axis),numpy.size(theta_bs,axis)))),2).sum(axis),(numpy.size(theta_bs,axis)-1)),0.5)
