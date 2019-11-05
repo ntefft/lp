@@ -6,7 +6,6 @@ Created on Fri May 10 11:41:35 2019
 
 This is a collection of utility functions that are be used for the Levitt and Porter (2001) replication.
 """
-
 # import necessary packages
 import numpy,pandas,time
 
