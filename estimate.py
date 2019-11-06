@@ -9,7 +9,7 @@ This is a collection of functions used to create and estimate the LP model, incl
 import numpy, time # import packages
 from statsmodels.base.model import GenericLikelihoodModel
 
-# converts the analytic sample (see the lpUtil.get_analytic_sample function) into a form that can be used in estimation
+# converts the analytic sample (see the util.get_analytic_sample function) into a form that can be used in estimation
 def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=False):
     start = time.time()
     print("Building the estimation sample...")
@@ -52,13 +52,13 @@ def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=Fa
     print('Rows of estimation sample after collapsing by equal mixing: ')
     print(len(estimation_sample.index))
     if 'all' not in equal_mixing:
-        # drop observations where there are no (one-vehicle, drunk) or no (one-vehicle, sober) crashes [model won't converge otherwise]
+        # drop observations where there are no (one-vehicle, driver type 1) or no (one-vehicle, driver type 2) crashes [otherwise, model won't converge]
         estimation_sample['a_miss'] = 0
         for dt in range(1,num_driver_types+1): 
             estimation_sample.loc[estimation_sample['a_' + str(dt)] == 0,'a_miss'] = 1
         estimation_sample = estimation_sample[estimation_sample['a_miss'] == 0]
         estimation_sample = estimation_sample.drop(columns=['a_miss'])
-        print('Rows of estimation sample after tossing out rows with zero single-car observations of either type: ')
+        print('Rows of estimation sample after dropping rows with zero single-car observations of either type: ')
         print(len(estimation_sample.index))
     
     print('Describing final estimation sample: ')
@@ -68,7 +68,7 @@ def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=Fa
     print("Time to build estimation sample: " + str(end-start))
     return estimation_sample
 
-# fit the LP model using an already constructed analytic sample
+# fit the LP model using constructed estimation sample
 def fit_model(estimation_sample,bsreps=100):           
     start = time.time()
     mod = Lp(estimation_sample) # create the model (modified GenericLikelihoodModel)
@@ -95,7 +95,7 @@ def fit_model(estimation_sample,bsreps=100):
     return res
 
 # wrapper around fit_model which implements multiple imputation estimation. Generates estimates for each MI replicate, and then
-# combines the estimates and standard errors
+# combines the results to produce final estimates and standard errors
 def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps=10):           
     res_params = numpy.zeros((mireps, 3, 2))
     mi_res = numpy.zeros((3, 2))
@@ -130,7 +130,6 @@ def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps
 
 # defines the log-likehood function. A is the set of accident data; N[i] is the proportion of crashes of type i, relative to type 1;
 # thet[i] is the two-car crash relative risk of type i, relative to type 1; lamb[i] is the one-car crash relative risk of type i, relative to type 1
-
 def _ll_lp(A, num_driver_types, thet, lamb):
     num_agg_rows = numpy.size(A,axis=0)
 
@@ -153,7 +152,7 @@ def _ll_lp(A, num_driver_types, thet, lamb):
     N = numpy.ones((num_agg_rows,num_driver_types))
     for dt in range(0,num_driver_types): # count of a driver type relative to type 1
         N[:,dt] = (1/lamb_1[dt])*(A_1[:,dt]/A_1[:,0])
-#   
+   
     # build the probability values for accidents of each type: first build the probability denominator
     p_denom = numpy.zeros((num_agg_rows))
     for dto in range(0,num_driver_types):

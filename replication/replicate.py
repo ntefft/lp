@@ -7,8 +7,8 @@ Created on Wed May 15 11:37:00 2019
 This script generates summary statistics and estimation analysis results for the Dunn and Tefft (2019)
 replication of Levitt and Porter (2001).
 """
-# change working directory to GitHub path
 import os, sys, pandas 
+# change working directory to GitHub path
 os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
 
 # import LP utility and model fit functions
@@ -25,13 +25,13 @@ df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the
 
 # set estimation parameters
 #bsreps = 1 # bootstrap replicates for testing
-bsreps = 100 # bootstrap replicates
-#mireps = 2 # multiple imputation replicates to use, for testing
-mireps = 10 # multiple imputation replicates to use (FARS includes a total of 10)
+bsreps = 100 # bootstrap replicates for replication
+#mireps = 2 # multiple imputation replicates, for testing
+mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
 sy_p_t = 0.13 # state-year proportion missing threshold that best approximates L&P's results
 # drinking definitions 1 through 4
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary']
-#results_folder = 'replication\\results'
+#results_folder = 'replication\\results' # for saving estimation results
 results_folder = 'replication\\temp' # for testing
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist

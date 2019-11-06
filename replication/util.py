@@ -18,7 +18,7 @@ def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
         df_driver = df_driver.droplevel(['per_no'])
     return df_driver
     
-# identifies a vehicle's driver as drunk, depending on drinking definition of interest
+# identifies a vehicle's driver as drinking, depending on drinking definition of interest
 # for multiple imputation, returns a dataframe with a drink_status for each MI replicate
 def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mireps):
     df_veh_driver = df_vehicle.merge(df_driver,how='left',left_index=True,right_index=True,validate='1:m') # merge in drivers from person file    
@@ -42,7 +42,6 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
             df_driver_drink_status = pandas.concat([df_veh_driver['drinking']]*mireps,axis=1)
         df_driver_drink_status = df_driver_drink_status.replace({8:numpy.nan, 9:numpy.nan})
     elif drinking_definition == 'any_evidence': # definition 2 in Levitt & Porter (2001)
-#        df_driver_drink_status = df_veh_driver['dr_drink']
         if mireps == False:
             df_driver_drink_status = df_veh_driver['dr_drink']
         else:
@@ -113,7 +112,7 @@ def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,b
     return df_return_miss
 
 # from the extracted FARS variables, builds the analytic sample of accident-vehicle-drivers
-# allows several parameters to be set for the analytic sample to be used
+# allows several parameters to be set for selecting the analytic sample to be used
 def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,earliest_hour, 
                         latest_hour,drinking_definition,bac_threshold,state_year_prop_threshold,
                         mireps=False,summarize_sample=True):
@@ -284,13 +283,10 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
         print('Count of weekdays vs weekend days: ')
         print(analytic_sample['weekend'].value_counts())
         
-    # now merge driver-level drink_status back in, to be available for building the estimation sample
-    # get dataframe of drinking status, then group by accident to sum drinking counts 
+    # now merge in driver-level drink_status, to be available for building the estimation sample
     df_acc_drink_count = veh_dr_drinking_status(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)], 
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(analytic_sample.index)]), 
                                              drinking_definition, bac_threshold, mireps)
-    
-    # merge in drinking status
     analytic_sample = analytic_sample.merge(df_acc_drink_count.reset_index().set_index(['year','st_case']),how='left',on=['year','st_case'])
     analytic_sample = analytic_sample.reset_index().set_index(['year','st_case','veh_no'])    
     
