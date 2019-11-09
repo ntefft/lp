@@ -46,7 +46,7 @@ sum_stats_df = pandas.DataFrame(sum_stats,columns=['Window start year','Window e
                 'Number of fatal two-car crashes','Reported to be drinking by police','Reported to not be drinking by police',
                 'Drinking status unreported by police','One drinking driver','One sober driver','One drinking, one sober driver',
                 'Two sober drivers','Two drinking drivers'])
-sum_stats_df.to_excel(results_folder + '\\table1.xlsx') # Note: should format as text after opening Excel file
+sum_stats_df.T.to_excel(results_folder + '\\table1.xlsx') # Note: should format as text after opening Excel file
 
 # TABLE 2: Relative Risk and Prevalence of Alcohol-involved Driving by 5 year interval (BAC > 0)
 res_fmt = list()
