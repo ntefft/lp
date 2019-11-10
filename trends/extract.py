@@ -55,7 +55,7 @@ for yr in range(firstYear,latestYear+1):
     df_acc_yr.loc[df_acc_yr.day_week==9, 'day_week'] = numpy.nan
     df_acc_yr['quarter'] = numpy.ceil(df_acc_yr['month']/3) # create quarter variable
     df_acc_yr = df_acc_yr.merge(df_states,how='left',left_on='state',right_index=True) # merge in state abbreviations
-    
+        
     # keep relevant accident variables and append to accident dataframe
     df_acc_yr = df_acc_yr[['state','state_abbr','quarter','day_week','hour','persons']]
     print('Count of accidents: ' + str(len(df_acc_yr)))
@@ -103,6 +103,7 @@ for yr in range(firstYear,latestYear+1):
     df_per_yr.loc[df_per_yr.sex.isin([8,9]), 'sex'] = numpy.nan # sex
     df_per_yr.loc[df_per_yr.race==99, 'race'] = numpy.nan # race
     df_per_yr.loc[df_per_yr.seat_pos>=98, 'seat_pos'] = numpy.nan # seat position
+    df_per_yr.loc[df_per_yr.inj_sev.isin([8,9]), 'inj_sev'] = numpy.nan # injury_severity
     
     # clean mulptiple imputation variables, e.g. harmonize names, ensure correct datatypes, and record missing variables 
     df_mi_yr[['st_case','veh_no','per_no']] = df_mi_yr[['st_case','veh_no','per_no']].astype('int')
@@ -114,7 +115,7 @@ for yr in range(firstYear,latestYear+1):
     df_per_yr = df_per_yr.merge(df_mi_yr,how='left',on=['year','st_case','veh_no','per_no']) # merge multiply imputed bac values into person dataframe
     
     # keep relevant person variables and append to person dataframe
-    df_per_yr = df_per_yr[['seat_pos','drinking','alc_det','atst_typ','alcohol_test_result','race','age','age_lt15','sex','mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']]
+    df_per_yr = df_per_yr[['seat_pos','inj_sev','drinking','alc_det','atst_typ','alcohol_test_result','race','age','age_lt15','sex','mibac1','mibac2','mibac3','mibac4','mibac5','mibac6','mibac7','mibac8','mibac9','mibac10']]
     print('Count of persons: ' + str(len(df_per_yr)))
     df_person = df_person.append(df_per_yr)
     
