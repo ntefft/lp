@@ -81,14 +81,17 @@ def fit_model(estimation_sample,bsreps=100):
     print("Time to fit model: " + str(end-start))
     
     # add final_params attribute to the fit model, which captures the relevant estimates and standard errors
-    # row 0 = theta, row 1 = lambda, row 2 = N
-    # column 0 = estimate, column 1 = bootstrapped standard error
-    res.final_params = numpy.column_stack((res.params,bs_se(res.bootstrap_results,axis=0)))
-    res.final_params = numpy.vstack([res.final_params,[(1/res.params[1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum()),bs_se((1/res.bootstrap_results[:,1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum()))]])
+    # row 0 = estimate, row 1 = bootstrapped standard error
+    # col 0 = theta, col 1 = lambda, col 2 = N
+    res.final_params = numpy.zeros((2,3))
+    res.final_params[0] = numpy.concatenate((res.params,(1/res.params[1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum())),axis=None)
+    res.final_params[1] = numpy.concatenate((bs_se(res.bootstrap_results,axis=0),bs_se((1/res.bootstrap_results[:,1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum()))),axis=None)
+#    res.final_params = numpy.row_stack((res.params,bs_se(res.bootstrap_results,axis=0)))
+#    res.final_params = numpy.hstack([res.final_params,[(1/res.params[1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum()),bs_se((1/res.bootstrap_results[:,1])*(estimation_sample['a_2'].sum()/estimation_sample['a_1'].sum()))]])
     
     # report relevant model statistics
-    print('Parameters (theta, lambda, N): ', res.final_params[:,0])
-    print('Bootstrap standard errors (theta, lambda, N): ', res.final_params[:,1])
+    print('Parameters (theta, lambda, N): ', res.final_params[0])
+    print('Bootstrap standard errors (theta, lambda, N): ', res.final_params[1])
     print('Log-likelihood: ', res.llf)
     print('Residual degrees of freedom: ', res.df_resid)
     
@@ -97,8 +100,9 @@ def fit_model(estimation_sample,bsreps=100):
 # wrapper around fit_model which implements multiple imputation estimation. Generates estimates for each MI replicate, and then
 # combines the results to produce final estimates and standard errors
 def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps=10):           
-    res_params = numpy.zeros((mireps, 3, 2))
-    mi_res = numpy.zeros((3, 2))
+    # dimensions are mireps, estimates & standard errors, and finally the parameters
+    res_params = numpy.zeros((mireps,2,3))
+    mi_res = numpy.zeros((2,3))
     mi_llf = 0
     mi_df_resid = 0
     # loop over mi replicates and estimate model for each
@@ -107,17 +111,20 @@ def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps
                                                   num_driver_types,mirep=(i+1))
         res = fit_model(estimation_sample,bsreps)
         res_params[i] = res.final_params
-        mi_res[:,0] += res_params[i,:,0]/mireps # add estimate to running mean of estimates, for final mi estimate
+#        mi_res[0] += res_params[i,0]/mireps # add estimate to running mean of estimates, for final mi estimate
         mi_llf += res.llf
         mi_df_resid = res.df_resid
-        
-    # loop again to calculate final standard errors
-    for i in range(0,mireps): 
-        mi_res[:,1] += numpy.power(res_params[i,:,1],2)/mireps + ((1+1/mireps)/(mireps-1))*numpy.power(res_params[i,:,1]-mi_res[:,1],2)
-        
+    
+    mi_res = mi_theta_se(res_params)
+#    
+#    # loop again to calculate final standard errors
+#    for i in range(0,mireps): 
+##        mi_res[:,1] += numpy.power(res_params[i,:,1],2)/mireps + ((1+(1/mireps))/(mireps-1))*numpy.power(res_params[i,:,1]-mi_res[:,1],2)
+#        mi_res[:,1] += numpy.power(res_params[i,:,1],2)/mireps + ((1+(1/mireps))/(mireps-1))*numpy.power(res_params[i,:,0]-mi_res[:,0],2)
+#        
     # report relevant model statistics
-    print('MI Parameters (theta, lambda, N): ', mi_res[:,0])
-    print('MI bootstrap standard errors (theta, lambda, N): ', mi_res[:,1])
+    print('MI Parameters (theta, lambda, N): ', mi_res[0])
+    print('MI bootstrap standard errors (theta, lambda, N): ', mi_res[1])
     print('MI log-likelihood: ', mi_llf)
     print('MI residual degrees of freedom: ', mi_df_resid)
     
@@ -220,3 +227,18 @@ def lnfactorial(n):
 # calculate boostrap standard error from bootstrap estimates
 def bs_se(theta_bs, axis=None):
     return numpy.power(numpy.divide(numpy.power((numpy.subtract(theta_bs,numpy.divide(theta_bs.sum(axis),numpy.size(theta_bs,axis)))),2).sum(axis),(numpy.size(theta_bs,axis)-1)),0.5)
+
+# generate the MI estimates of thetas and standard errors    
+# reps_theta_se: dimension 1 is MI replicate, dimension 2 is estimates (0) and standard errors (1), the remaining dimensions contain the values
+def mi_theta_se(reps_theta_se, axis=0):
+    mi_estimates = numpy.zeros(reps_theta_se.mean(axis=axis).shape)
+    mireps = reps_theta_se.shape[0]
+    
+    # average across MI replicates for final estimate
+    mi_estimates[0] = reps_theta_se[:,0].mean(axis=axis)
+    
+    # loop through MI replicates for final standard errors
+    for miidx in range(0,mireps): 
+        mi_estimates[1] += numpy.power(reps_theta_se[miidx,1],2)/mireps + ((1+(1/mireps))/(mireps-1))*numpy.power(reps_theta_se[miidx,0]-mi_estimates[0],2)
+        
+    return mi_estimates

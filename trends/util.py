@@ -332,27 +332,24 @@ def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,bac
     
     period_params = period_params.rename(columns={'end_5yr_window':'year'}).set_index(['year'])
     bac_threshold_scaled = int(bac_threshold*100) # need to scale the threshold to match how the data are stored
-    all_results = numpy.zeros((mireps,bsreps,len(period_params.index),13))
     
-    mi_estimates = numpy.zeros((mireps,len(period_params.index),13))
-    mi_std_errs = numpy.zeros((mireps,len(period_params.index),13))
+    # list of variables to return with MI estimates and standard errors
+    results_vars = ['fat_sob_driver_acc_any_dds','fat_sob_nonveh_acc_any_dds','ec_ca_deaths_wo_own_adj']
+    # for each mirep, store bootstrapped estimates and standard errors, for the 2-d array of parameters
+    bs_estimates = numpy.zeros((mireps,2,len(period_params.index),len(results_vars)))
+    # estimates and standard errors, calculated from bootstrapped estimates, for the 2-d array of parameters
+    mi_estimates = numpy.zeros((2,len(period_params.index),len(results_vars)))
     for miidx in range(0,mireps):    
         # for the given MI replicate build bootstrap estimates and standard errors
-        bs_results = numpy.zeros((bsreps,len(period_params.index),13))
+        bs_results = numpy.zeros((bsreps,len(period_params.index),len(results_vars)))
         for bsidx in range(0,bsreps):   
             print('Generating results for bootstrap replicate ' + str(bsidx+1) + ' of MI replicate ' + str(miidx+1))
             df_externality = pandas.DataFrame(index=df_accident.index)
-            if bsidx>0: # draw random samples within equal mixings for bootstrapping
-#                df_externality = df_externality.sample(frac=1, replace=True)
-                df_externality = df_externality.merge(df_accident[['state','hour','day_week']],on=['year','st_case'])
-                df_externality['weekend'] = ((df_externality['day_week'] == 6) & (df_externality['hour'] >= 20)) | (df_externality['day_week'] == 7) | ((df_externality['day_week'] == 1) & (df_externality['hour'] <= 4))
-                df_externality = df_externality.reset_index().set_index(['st_case']).groupby(['year','state','weekend','hour']).apply(lambda x: x.sample(frac=1,replace=True))
+            if bsidx>0: # draw random samples within each year for bootstrapping
+                df_externality = df_externality.reset_index().set_index(['st_case']).groupby(['year']).apply(lambda x: x.sample(frac=1,replace=True))
                 df_externality = pandas.DataFrame(index=df_externality[[]].reset_index().set_index(['year','st_case']).index)
-            # merge in relevant vehicle info
-#            df_externality = df_externality.merge(df_vehicle.reset_index().set_index(['year','st_case'])['veh_no'],how='inner',on=['year','st_case']).reset_index().set_index(['year','st_case','veh_no'])
             # merge in relevant person info (don't need any vehicle info, and it makes merging more challenging)
             df_externality = df_externality.merge(df_person.reset_index().set_index(['year','st_case'])[['veh_no','per_no','seat_pos','inj_sev','mibac' + str(miidx+1)]],how='inner',on=['year','st_case']).reset_index().set_index(['year','st_case','veh_no','per_no'])
-#            df_externality = df_externality.merge(df_person.loc[:,'mibac1':'mibac' + str(mireps)],how='inner',on=['year','st_case','veh_no','per_no'])
             # after person merge, assign count of vehicles
             df_externality['veh_count'] = df_externality.index.droplevel(['year','st_case','per_no'])
             df_externality['veh_count'] = df_externality['veh_count'].groupby(['year','st_case']).max() # number of vehicles involved in accident
@@ -366,7 +363,6 @@ def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,bac
             # note that many of the created variables below do not precisely handle missing values...
             # this is because we sum them at the end, so "False" or zero values are simply not included in the sums
             # person identified as drinking if the majority of considered MI replicates indicate it
-#            df_externality['per_drinking'] = ((df_externality.loc[:,'mibac1':'mibac' + str(mireps)]>bac_threshold_scaled).sum(axis='columns') >= (mireps/2))
             df_externality['per_drinking'] = df_externality['mibac' + str(miidx+1)]>bac_threshold_scaled
             df_externality['fatality'] = (df_externality['inj_sev']==4) # is a fatality
             df_externality['driver'] = (df_externality['seat_pos']==11) # is a driver
@@ -410,23 +406,9 @@ def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,bac
         
             agg_results['ca_acc'] = agg_results['acc_any_dds'] + agg_results['acc_any_fsndds'] # TOTAL NUMBER OF ACCIDENTS INVOLVING DRUNK DRIVERS
             
-            bs_results[bsidx] = agg_results.loc[:,'fat_acc_any_dds':'ca_acc'].to_numpy()
-        mi_estimates[miidx] = bs_results[0] # the first rep is the original sample
-        mi_std_errs[miidx] = estimate.bs_se(bs_results)
+            bs_results[bsidx] = agg_results[results_vars].to_numpy()
+        bs_estimates[miidx,0] = bs_results[0] # the first rep are estimates from original sample
+        bs_estimates[miidx,1] = estimate.bs_se(bs_results,axis=0) # standard errors
     
-    final_estimates = mi_estimates.mean(axis=0) # average across MI estimates
-    # loop again to calculate final standard errors
-    final_std_errs = numpy.zeros((len(period_params.index),13))
-    for miidx in range(0,mireps): 
-        final_std_errs += numpy.power(mi_estimates[miidx],2)/mireps + ((1+1/mireps)/(mireps-1))*numpy.power(mi_estimates[miidx]-final_std_errs,2)
-    
-    return 'under construction'
-
-mireps=2
-bsreps=2
-period_params = pandas.read_csv('trends\\externality_period_params.csv')
-import random
-random.seed(1)
-test = calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,0,2,2)
-all_results[0,0] = agg_results.loc[:,'fat_acc_any_dds':'ca_acc'].to_numpy()
-all_results[0,0]
+    mi_estimates = estimate.mi_theta_se(bs_estimates)
+    return mi_estimates

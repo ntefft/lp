@@ -7,7 +7,7 @@ Created on Fri Nov 8 2019
 This script generates summary statistics and estimation analysis results for a nationwide trends analysis
 of Levitt and Porter (2001).
 """
-import os, sys, pandas 
+import os, sys, pandas, random
 # change working directory to GitHub path
 os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
 
@@ -31,8 +31,8 @@ bsreps = 2 # bootstrap replicates for testing
 mireps = 2 # multiple imputation replicates, for testing
 #mireps = 10 # multiple imputation replicates for analysis (FARS includes a total of 10)
 window = 5 # length of estimation window
-results_folder = 'trends\\results' # for saving estimation results
-#results_folder = 'trends\\temp' # for testing
+#results_folder = 'trends\\results' # for saving estimation results
+results_folder = 'trends\\temp' # for testing
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
@@ -55,9 +55,9 @@ for yr in range(firstyr,(lastyr+1),window):
     analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,yr,(yr+window-1),20,4,'impaired_vs_sober',
                         bac_threshold=0,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False)
     mod_res = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
-    res_fmt.append([yr,round(mod_res.mi_params[0][0],2),round(mod_res.mi_params[1][0],2),round(mod_res.mi_params[2][0]/(1+mod_res.mi_params[2][0]),3)])
+    res_fmt.append([yr,round(mod_res.mi_params[0][0],2),round(mod_res.mi_params[0][1],2),round(mod_res.mi_params[0][2]/(1+mod_res.mi_params[0][2]),3)])
     # Note that N is converted into proportion of drinking drivers
-    res_fmt.append([(yr+window-1),'('+str(round(mod_res.mi_params[0][1],2))+')','('+str(round(mod_res.mi_params[1][1],2))+')','('+str(round(mod_res.mi_params[2][1]/(1+mod_res.mi_params[2][1]),3))+')'])
+    res_fmt.append([(yr+window-1),'('+str(round(mod_res.mi_params[1][0],2))+')','('+str(round(mod_res.mi_params[1][1],2))+')','('+str(round(mod_res.mi_params[1][2]/(1+mod_res.mi_params[1][2]),3))+')'])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['year range','theta','lambda','proportion drinking'])
 res_fmt_df.to_excel(results_folder + '\\table2.xlsx') # Note: should format as text after opening Excel file
 
@@ -68,8 +68,15 @@ for yr in range(firstyr,(lastyr+1),window):
     analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,yr,(yr+window-1),20,4,'impaired_vs_sober',
                         bac_threshold=0.08,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False)
     mod_res = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
-    res_fmt.append([yr,round(mod_res.mi_params[0][0],2),round(mod_res.mi_params[1][0],2),round(mod_res.mi_params[2][0]/(1+mod_res.mi_params[2][0]),3)])
+    res_fmt.append([yr,round(mod_res.mi_params[0][0],2),round(mod_res.mi_params[0][1],2),round(mod_res.mi_params[0][2]/(1+mod_res.mi_params[0][2]),3)])
     # Note that N is converted into proportion of drinking drivers
-    res_fmt.append([(yr+window-1),'('+str(round(mod_res.mi_params[0][1],2))+')','('+str(round(mod_res.mi_params[1][1],2))+')','('+str(round(mod_res.mi_params[2][1]/(1+mod_res.mi_params[2][1]),3))+')'])
+    res_fmt.append([(yr+window-1),'('+str(round(mod_res.mi_params[1][0],2))+')','('+str(round(mod_res.mi_params[1][1],2))+')','('+str(round(mod_res.mi_params[1][2]/(1+mod_res.mi_params[1][2]),3))+')'])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['year range','theta','lambda','proportion drinking'])
 res_fmt_df.to_excel(results_folder + '\\table3.xlsx') # Note: should format as text after opening Excel file
+
+# TABLE 4: External cost per mile driven by year and driver BAC level
+res_fmt = list()
+period_params = pandas.read_csv('trends\\externality_period_params.csv')
+bac_threshold = 0
+random.seed(1) # for replicating the bootstrapped standard errors
+mod_res = util.calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,bac_threshold,mireps,bsreps)
