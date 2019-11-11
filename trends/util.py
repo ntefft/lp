@@ -8,6 +8,7 @@ This is a collection of utility functions that are to be used for the Levitt and
 """
 # import necessary packages
 import numpy,pandas,time
+import estimate
 
 # returns a dataframe of drivers, from the person file. Defaults to drop crashes with multiple drivers in at least one of the driver's seats.
 def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
@@ -326,76 +327,106 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
     
     return analytic_sample
 
-def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,drinking_definition,bac_threshold,mireps):
+def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,bac_threshold,mireps,bsreps):
+    # should bootstrap using each MI replicate, then combine results as MI estimates and MI SE: https://arxiv.org/pdf/1602.07933v1.pdf
     
-    # testing code
-    period_params = pandas.read_csv('trends\\externality_period_params.csv')
-    mireps = 10
-    bac_threshold = 0
-    
-    bac_threshold_scaled = bac_threshold*100 # need to scale the threshold to match how the data are stored
-    
-    df_externality = df_accident[['persons']]
-    # merge in relevant vehicle info
-    df_externality = df_externality.merge(df_vehicle.reset_index().set_index(['year','st_case'])[['veh_no','occupants']],how='inner',on=['year','st_case']).reset_index().set_index(['year','st_case','veh_no'])
-    # merge in relevant person info
-    df_externality = df_externality.merge(df_person.reset_index().set_index(['year','st_case','veh_no'])[['per_no','seat_pos','inj_sev']],how='right',on=['year','st_case','veh_no']).reset_index().set_index(['year','st_case','veh_no','per_no'])
-    df_externality = df_externality.merge(df_person.loc[:,'mibac1':'mibac' + str(mireps)],how='inner',on=['year','st_case','veh_no','per_no'])
-    # after person merge, assign count of vehicles
-    df_externality['veh_count'] = df_externality.index.droplevel(['year','st_case','per_no'])
-    df_externality['veh_count'] = df_externality['veh_count'].groupby(['year','st_case']).max() # number of vehicles involved in accident
-    # keep only those accidents that involved at least one vehicle
-    df_externality = df_externality.loc[df_externality['veh_count']>0]
-    
-    # now merge in analysis window data
-    # restrict only to accidents that are in the end of analysis window years
     period_params = period_params.rename(columns={'end_5yr_window':'year'}).set_index(['year'])
-    df_externality = df_externality.reset_index().set_index(['year']).merge(period_params,how='inner',on=['year']).reset_index().set_index(['year','st_case','veh_no','per_no'])
-
-    # note that many of the created variables below do not precisely handle missing values...
-    # this is because we sum them at the end, so "False" or zero values are simply not included in the sums
-    # person identified as drinking if the majority of considered MI replicates indicate it
-    df_externality['per_drinking'] = ((df_externality.loc[:,'mibac1':'mibac' + str(mireps)]>bac_threshold_scaled).sum(axis='columns') >= (mireps/2))
-    df_externality['fatality'] = (df_externality['inj_sev']==4) # is a fatality
-    df_externality['driver'] = (df_externality['seat_pos']==11) # is a driver
-    df_externality['dd'] = (df_externality['per_drinking'] & df_externality['driver']) # is a drinking driver
-    df_externality['acc_num_dds'] = df_externality['dd'].groupby(['year','st_case']).sum() # number of drinking drivers in accident
-    df_externality['acc_any_dds'] = (df_externality['acc_num_dds']>0) # accident with at least one drinking driver
-    df_externality['veh_num_dds'] = df_externality['dd'].groupby(['year','st_case','veh_no']).sum() # number of drinking drivers in a vehicle
-    df_externality['sd'] = (~df_externality['per_drinking'] & df_externality['driver']) # is a sober driver
-    df_externality['acc_num_sds'] = df_externality['sd'].groupby(['year','st_case']).sum() # number of sober drivers in accident
-    df_externality['fat_acc_any_dds'] = (df_externality['acc_any_dds'] & df_externality['fatality']) # fatality in an accident with at least one drinking driver    
-    df_externality['fat_sob_nonveh_acc_any_dds'] = (df_externality['fatality'] & (df_externality['seat_pos']==0) & df_externality['acc_any_dds'] & ~df_externality['per_drinking']) # SOBER NON-VEHICLE OCCUPANT (PEDESTRIANS, CYCLISTS, ETC) KILLED IN ACCIDENT INVOLVING DRUNK DRIVER
-    df_externality['fat_sob_driver_acc_any_dds'] = (df_externality['fatality'] & (df_externality['seat_pos']!=0) & df_externality['acc_any_dds'] & (df_externality['veh_num_dds']==0)) # DEATH IN NON-DRINKING DRIVER VEHICLE IN ACCIDENT INVOLVING DRUNK DRIVER
-    df_externality['acc_num_fsndds'] = df_externality['fat_sob_nonveh_acc_any_dds'].groupby(['year','st_case']).sum() # NUMBER OF SOBER NON-VEHICLE OCCUPANTS (PEDESTRIANS, CYCLISTS, ETC) KILLED IN ACCIDENT INVOLVING DRUNK DRIVER
-    df_externality['acc_any_fsndds'] = (df_externality['acc_num_fsndds']>0) # IS AN ACCIDENT WITH AT LEAST ONE SOBER NON-VEHICLE OCCUPANT (PEDESTRIANS, CYCLISTS, ETC) KILLED INVOLVING DRUNK DRIVER
-
-    # collapse counts by accidents
-    df_externality = pandas.concat([df_externality[['veh_count','acc_num_dds','acc_any_dds','acc_num_sds','acc_any_fsndds','one_car_rr_bac_'+str(bac_threshold*100),'two_car_rr_bac_'+str(bac_threshold*100),'dd_prev_bac_'+str(bac_threshold*100),'dot_vsl','annual_vmt']].groupby(['year','st_case']).mean(),
-                                        df_externality[['fatality','driver','dd','fat_acc_any_dds','fat_sob_nonveh_acc_any_dds','fat_sob_driver_acc_any_dds']].groupby(['year','st_case']).sum()],axis='columns')
-    df_externality = df_externality.loc[~((df_externality['acc_num_dds']==0) & (df_externality['acc_num_sds']==0))] # drop accidents with driverless cars
+    bac_threshold_scaled = int(bac_threshold*100) # need to scale the threshold to match how the data are stored
+    all_results = numpy.zeros((mireps,bsreps,len(period_params.index),13))
     
-    # create counterfactual avoidable weights for drinking drivers
-    df_externality['cf_wt'] = numpy.nan
-    df_externality.loc[(df_externality['acc_num_dds']>0) & (df_externality['veh_count']>1),'cf_wt'] = df_externality['acc_num_dds']*(df_externality['two_car_rr_bac_'+str(bac_threshold*100)] - 1)/(df_externality['two_car_rr_bac_'+str(bac_threshold*100)]*df_externality['acc_num_dds'] + df_externality['acc_num_sds']) # COUNTERFACTUAL AVOIDABLE WEIGHT FOR MULTI-VEHICLE CRASHES AND AT LEAST ONE DRINKING DRIVER
-    df_externality.loc[(df_externality['acc_num_dds']>0) & (df_externality['veh_count']==1),'cf_wt'] = (df_externality['one_car_rr_bac_'+str(bac_threshold*100)] - 1)/df_externality['one_car_rr_bac_'+str(bac_threshold*100)] # COUNTERFACTUAL AVOIDABLE WEIGHT FOR SINGLE-VEHICLE CRASHES WITH A DRINKING DRIVER
-    
-    # construct aggregated results table
-    agg_results = pandas.concat([df_externality[['one_car_rr_bac_'+str(bac_threshold*100),'two_car_rr_bac_'+str(bac_threshold*100),'dd_prev_bac_'+str(bac_threshold*100),'dot_vsl','annual_vmt']].groupby(['year']).mean(),                                
-                                df_externality[['fat_acc_any_dds','fat_sob_nonveh_acc_any_dds','fat_sob_driver_acc_any_dds']].multiply(df_externality['cf_wt'],axis='index').groupby(['year']).sum(),
-                                df_externality[['acc_any_dds','acc_any_fsndds']].groupby(['year']).sum()],                        
-                                axis='columns')    
+    mi_estimates = numpy.zeros((mireps,len(period_params.index),13))
+    mi_std_errs = numpy.zeros((mireps,len(period_params.index),13))
+    for miidx in range(0,mireps):    
+        # for the given MI replicate build bootstrap estimates and standard errors
+        bs_results = numpy.zeros((bsreps,len(period_params.index),13))
+        for bsidx in range(0,bsreps):   
+            print('Generating results for bootstrap replicate ' + str(bsidx+1) + ' of MI replicate ' + str(miidx+1))
+            df_externality = pandas.DataFrame(index=df_accident.index)
+            if bsidx>0: # draw random samples within equal mixings for bootstrapping
+#                df_externality = df_externality.sample(frac=1, replace=True)
+                df_externality = df_externality.merge(df_accident[['state','hour','day_week']],on=['year','st_case'])
+                df_externality['weekend'] = ((df_externality['day_week'] == 6) & (df_externality['hour'] >= 20)) | (df_externality['day_week'] == 7) | ((df_externality['day_week'] == 1) & (df_externality['hour'] <= 4))
+                df_externality = df_externality.reset_index().set_index(['st_case']).groupby(['year','state','weekend','hour']).apply(lambda x: x.sample(frac=1,replace=True))
+                df_externality = pandas.DataFrame(index=df_externality[[]].reset_index().set_index(['year','st_case']).index)
+            # merge in relevant vehicle info
+#            df_externality = df_externality.merge(df_vehicle.reset_index().set_index(['year','st_case'])['veh_no'],how='inner',on=['year','st_case']).reset_index().set_index(['year','st_case','veh_no'])
+            # merge in relevant person info (don't need any vehicle info, and it makes merging more challenging)
+            df_externality = df_externality.merge(df_person.reset_index().set_index(['year','st_case'])[['veh_no','per_no','seat_pos','inj_sev','mibac' + str(miidx+1)]],how='inner',on=['year','st_case']).reset_index().set_index(['year','st_case','veh_no','per_no'])
+#            df_externality = df_externality.merge(df_person.loc[:,'mibac1':'mibac' + str(mireps)],how='inner',on=['year','st_case','veh_no','per_no'])
+            # after person merge, assign count of vehicles
+            df_externality['veh_count'] = df_externality.index.droplevel(['year','st_case','per_no'])
+            df_externality['veh_count'] = df_externality['veh_count'].groupby(['year','st_case']).max() # number of vehicles involved in accident
+            # keep only those accidents that involved at least one vehicle
+            df_externality = df_externality.loc[df_externality['veh_count']>0]
         
-    agg_results['annual_drinking_vmt'] = 0.16*agg_results['annual_vmt']*agg_results['dd_prev_bac_'+str(bac_threshold*100)] # PROPORTION OF MILES DRIVEN ASSUMED BY DRUNK DRIVERS, RESTRICTING ONLY TO NIGHT MILES
+            # now merge in analysis window data
+            # restrict only to accidents that are in the end of analysis window years
+            df_externality = df_externality.reset_index().set_index(['year']).merge(period_params,how='inner',on=['year']).reset_index().set_index(['year','st_case','veh_no','per_no'])
+        
+            # note that many of the created variables below do not precisely handle missing values...
+            # this is because we sum them at the end, so "False" or zero values are simply not included in the sums
+            # person identified as drinking if the majority of considered MI replicates indicate it
+#            df_externality['per_drinking'] = ((df_externality.loc[:,'mibac1':'mibac' + str(mireps)]>bac_threshold_scaled).sum(axis='columns') >= (mireps/2))
+            df_externality['per_drinking'] = df_externality['mibac' + str(miidx+1)]>bac_threshold_scaled
+            df_externality['fatality'] = (df_externality['inj_sev']==4) # is a fatality
+            df_externality['driver'] = (df_externality['seat_pos']==11) # is a driver
+            df_externality['dd'] = (df_externality['per_drinking'] & df_externality['driver']) # is a drinking driver
+            df_externality['acc_num_dds'] = df_externality['dd'].groupby(['year','st_case']).sum() # number of drinking drivers in accident
+            df_externality['acc_any_dds'] = (df_externality['acc_num_dds']>0) # accident with at least one drinking driver
+            df_externality['veh_num_dds'] = df_externality['dd'].astype(int).groupby(['year','st_case','veh_no']).sum() # number of drinking drivers in a vehicle
+            df_externality['sd'] = (~df_externality['per_drinking'] & df_externality['driver']) # is a sober driver
+            df_externality['acc_num_sds'] = df_externality['sd'].groupby(['year','st_case']).sum() # number of sober drivers in accident
+            df_externality['fat_acc_any_dds'] = (df_externality['acc_any_dds'] & df_externality['fatality']) # fatality in an accident with at least one drinking driver    
+            df_externality['fat_sob_nonveh_acc_any_dds'] = (df_externality['fatality'] & (df_externality['seat_pos']==0) & df_externality['acc_any_dds'] & ~df_externality['per_drinking']) # SOBER NON-VEHICLE OCCUPANT (PEDESTRIANS, CYCLISTS, ETC) KILLED IN ACCIDENT INVOLVING DRUNK DRIVER
+            df_externality['fat_sob_driver_acc_any_dds'] = (df_externality['fatality'] & df_externality['acc_any_dds'] & (df_externality['veh_num_dds']==0)) # DEATH IN NON-DRINKING DRIVER VEHICLE IN ACCIDENT INVOLVING DRUNK DRIVER
+            df_externality['acc_num_fsndds'] = df_externality['fat_sob_nonveh_acc_any_dds'].groupby(['year','st_case']).sum() # NUMBER OF SOBER NON-VEHICLE OCCUPANTS (PEDESTRIANS, CYCLISTS, ETC) KILLED IN ACCIDENT INVOLVING DRUNK DRIVER
+            df_externality['acc_any_fsndds'] = (df_externality['acc_num_fsndds']>0) # IS AN ACCIDENT WITH AT LEAST ONE SOBER NON-VEHICLE OCCUPANT (PEDESTRIANS, CYCLISTS, ETC) KILLED INVOLVING DRUNK DRIVER
+        
+            # collapse counts by accidents
+            df_externality = pandas.concat([df_externality[['veh_count','acc_num_dds','acc_any_dds','acc_num_sds','acc_any_fsndds','one_car_rr_bac_'+str(bac_threshold_scaled),'two_car_rr_bac_'+str(bac_threshold_scaled),'dd_prev_bac_'+str(bac_threshold_scaled),'dot_vsl','annual_vmt']].groupby(['year','st_case']).mean(),
+                                                df_externality[['fatality','driver','dd','fat_acc_any_dds','fat_sob_nonveh_acc_any_dds','fat_sob_driver_acc_any_dds']].groupby(['year','st_case']).sum()],axis='columns')
+            df_externality = df_externality.loc[~((df_externality['acc_num_dds']==0) & (df_externality['acc_num_sds']==0))] # drop accidents with driverless cars
+            
+            # create counterfactual avoidable weights for drinking drivers
+            df_externality['cf_wt'] = numpy.nan
+            df_externality.loc[(df_externality['acc_num_dds']>0) & (df_externality['veh_count']>1),'cf_wt'] = df_externality['acc_num_dds']*(df_externality['two_car_rr_bac_'+str(bac_threshold_scaled)] - 1)/(df_externality['two_car_rr_bac_'+str(bac_threshold_scaled)]*df_externality['acc_num_dds'] + df_externality['acc_num_sds']) # COUNTERFACTUAL AVOIDABLE WEIGHT FOR MULTI-VEHICLE CRASHES AND AT LEAST ONE DRINKING DRIVER
+            df_externality.loc[(df_externality['acc_num_dds']>0) & (df_externality['veh_count']==1),'cf_wt'] = (df_externality['one_car_rr_bac_'+str(bac_threshold_scaled)] - 1)/df_externality['one_car_rr_bac_'+str(bac_threshold_scaled)] # COUNTERFACTUAL AVOIDABLE WEIGHT FOR SINGLE-VEHICLE CRASHES WITH A DRINKING DRIVER
+            
+            # construct aggregated results table
+            agg_results = pandas.concat([df_externality[['one_car_rr_bac_'+str(bac_threshold_scaled),'two_car_rr_bac_'+str(bac_threshold_scaled),'dd_prev_bac_'+str(bac_threshold_scaled),'dot_vsl','annual_vmt']].groupby(['year']).mean(),                                
+                                        df_externality[['fat_acc_any_dds','fat_sob_nonveh_acc_any_dds','fat_sob_driver_acc_any_dds']].multiply(df_externality['cf_wt'],axis='index').groupby(['year']).sum(),
+                                        df_externality[['acc_any_dds','acc_any_fsndds']].groupby(['year']).sum()],                        
+                                        axis='columns')    
+                
+            agg_results['annual_drinking_vmt'] = 0.16*agg_results['annual_vmt']*agg_results['dd_prev_bac_'+str(bac_threshold_scaled)] # PROPORTION OF MILES DRIVEN ASSUMED BY DRUNK DRIVERS, RESTRICTING ONLY TO NIGHT MILES
+            
+            agg_results['ca_deaths_w_own_adj'] = agg_results['fat_sob_nonveh_acc_any_dds'] + agg_results['fat_acc_any_dds'] # COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
+            agg_results['vsl_ca_deaths_w_own_adj'] = agg_results['ca_deaths_w_own_adj']*agg_results['dot_vsl'] # VSL OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
+            agg_results['ec_ca_deaths_w_own_adj'] = agg_results['vsl_ca_deaths_w_own_adj']/agg_results['annual_drinking_vmt'] # EXTERNAL COST OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
+            
+            agg_results['ca_deaths_wo_own_adj'] = agg_results['fat_sob_nonveh_acc_any_dds'] + agg_results['fat_sob_driver_acc_any_dds'] # COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
+            agg_results['vsl_ca_deaths_wo_own_adj'] = agg_results['ca_deaths_wo_own_adj']*agg_results['dot_vsl'] # VSL OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
+            agg_results['ec_ca_deaths_wo_own_adj'] = agg_results['vsl_ca_deaths_wo_own_adj']/agg_results['annual_drinking_vmt'] # EXTERNAL COST OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
+        
+            agg_results['ca_acc'] = agg_results['acc_any_dds'] + agg_results['acc_any_fsndds'] # TOTAL NUMBER OF ACCIDENTS INVOLVING DRUNK DRIVERS
+            
+            bs_results[bsidx] = agg_results.loc[:,'fat_acc_any_dds':'ca_acc'].to_numpy()
+        mi_estimates[miidx] = bs_results[0] # the first rep is the original sample
+        mi_std_errs[miidx] = estimate.bs_se(bs_results)
     
-    agg_results['ca_deaths_w_own_adj'] = agg_results['fat_sob_nonveh_acc_any_dds'] + agg_results['fat_acc_any_dds'] # COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
-    agg_results['vsl_ca_deaths_w_own_adj'] = agg_results['ca_deaths_w_own_adj']*agg_results['dot_vsl'] # VSL OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
-    agg_results['ec_ca_deaths_w_own_adj'] = agg_results['vsl_ca_deaths_w_own_adj']/agg_results['annual_drinking_vmt'] # EXTERNAL COST OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
-    
-    agg_results['ca_deaths_wo_own_adj'] = agg_results['fat_sob_nonveh_acc_any_dds'] + agg_results['fat_sob_driver_acc_any_dds'] # COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
-    agg_results['vsl_ca_deaths_wo_own_adj'] = agg_results['ca_deaths_wo_own_adj']*agg_results['dot_vsl'] # VSL OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
-    agg_results['ec_ca_deaths_wo_own_adj'] = agg_results['vsl_ca_deaths_wo_own_adj']/agg_results['annual_drinking_vmt'] # EXTERNAL COST OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
-
-    agg_results['ca_acc'] = agg_results['acc_any_dds'] + agg_results['acc_any_fsndds'] # TOTAL NUMBER OF ACCIDENTS INVOLVING DRUNK DRIVERS
+    final_estimates = mi_estimates.mean(axis=0) # average across MI estimates
+    # loop again to calculate final standard errors
+    final_std_errs = numpy.zeros((len(period_params.index),13))
+    for miidx in range(0,mireps): 
+        final_std_errs += numpy.power(mi_estimates[miidx],2)/mireps + ((1+1/mireps)/(mireps-1))*numpy.power(mi_estimates[miidx]-final_std_errs,2)
     
     return 'under construction'
+
+mireps=2
+bsreps=2
+period_params = pandas.read_csv('trends\\externality_period_params.csv')
+import random
+random.seed(1)
+test = calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,0,2,2)
+all_results[0,0] = agg_results.loc[:,'fat_acc_any_dds':'ca_acc'].to_numpy()
+all_results[0,0]
