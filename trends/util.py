@@ -346,6 +346,11 @@ def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,dri
     df_externality['veh_count'] = df_externality['veh_count'].groupby(['year','st_case']).max() # number of vehicles involved in accident
     # keep only those accidents that involved at least one vehicle
     df_externality = df_externality.loc[df_externality['veh_count']>0]
+    
+    # now merge in analysis window data
+    # restrict only to accidents that are in the end of analysis window years
+    period_params = period_params.rename(columns={'end_5yr_window':'year'}).set_index(['year'])
+    df_externality = df_externality.reset_index().set_index(['year']).merge(period_params,how='inner',on=['year']).reset_index().set_index(['year','st_case','veh_no','per_no'])
 
     # note that many of the created variables below do not precisely handle missing values...
     # this is because we sum them at the end, so "False" or zero values are simply not included in the sums
@@ -366,18 +371,31 @@ def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,dri
     df_externality['acc_any_fsndds'] = (df_externality['acc_num_fsndds']>0) # IS AN ACCIDENT WITH AT LEAST ONE SOBER NON-VEHICLE OCCUPANT (PEDESTRIANS, CYCLISTS, ETC) KILLED INVOLVING DRUNK DRIVER
 
     # collapse counts by accidents
-    df_externality = pandas.concat([df_externality[['veh_count','acc_num_dds','acc_any_dds','acc_num_sds','acc_any_fsndds']].groupby(['year','st_case']).mean(),
+    df_externality = pandas.concat([df_externality[['veh_count','acc_num_dds','acc_any_dds','acc_num_sds','acc_any_fsndds','one_car_rr_bac_'+str(bac_threshold*100),'two_car_rr_bac_'+str(bac_threshold*100),'dd_prev_bac_'+str(bac_threshold*100),'dot_vsl','annual_vmt']].groupby(['year','st_case']).mean(),
                                         df_externality[['fatality','driver','dd','fat_acc_any_dds','fat_sob_nonveh_acc_any_dds','fat_sob_driver_acc_any_dds']].groupby(['year','st_case']).sum()],axis='columns')
     df_externality = df_externality.loc[~((df_externality['acc_num_dds']==0) & (df_externality['acc_num_sds']==0))] # drop accidents with driverless cars
-        
-    # now merge in analysis window data
-    # create window year for matching with analysis window data
-    df_externality['end_5yr_window'] = df_externality.index.droplevel(['st_case'])-numpy.mod((df_externality.index.droplevel(['st_case'])+2),5)+4
-    df_externality = df_externality.reset_index().set_index(['end_5yr_window']).merge(period_params.set_index(['end_5yr_window']),how='inner',on=['end_5yr_window']).reset_index().set_index(['year','st_case'])
     
     # create counterfactual avoidable weights for drinking drivers
     df_externality['cf_wt'] = numpy.nan
     df_externality.loc[(df_externality['acc_num_dds']>0) & (df_externality['veh_count']>1),'cf_wt'] = df_externality['acc_num_dds']*(df_externality['two_car_rr_bac_'+str(bac_threshold*100)] - 1)/(df_externality['two_car_rr_bac_'+str(bac_threshold*100)]*df_externality['acc_num_dds'] + df_externality['acc_num_sds']) # COUNTERFACTUAL AVOIDABLE WEIGHT FOR MULTI-VEHICLE CRASHES AND AT LEAST ONE DRINKING DRIVER
     df_externality.loc[(df_externality['acc_num_dds']>0) & (df_externality['veh_count']==1),'cf_wt'] = (df_externality['one_car_rr_bac_'+str(bac_threshold*100)] - 1)/df_externality['one_car_rr_bac_'+str(bac_threshold*100)] # COUNTERFACTUAL AVOIDABLE WEIGHT FOR SINGLE-VEHICLE CRASHES WITH A DRINKING DRIVER
+    
+    # construct aggregated results table
+    agg_results = pandas.concat([df_externality[['one_car_rr_bac_'+str(bac_threshold*100),'two_car_rr_bac_'+str(bac_threshold*100),'dd_prev_bac_'+str(bac_threshold*100),'dot_vsl','annual_vmt']].groupby(['year']).mean(),                                
+                                df_externality[['fat_acc_any_dds','fat_sob_nonveh_acc_any_dds','fat_sob_driver_acc_any_dds']].multiply(df_externality['cf_wt'],axis='index').groupby(['year']).sum(),
+                                df_externality[['acc_any_dds','acc_any_fsndds']].groupby(['year']).sum()],                        
+                                axis='columns')    
+        
+    agg_results['annual_drinking_vmt'] = 0.16*agg_results['annual_vmt']*agg_results['dd_prev_bac_'+str(bac_threshold*100)] # PROPORTION OF MILES DRIVEN ASSUMED BY DRUNK DRIVERS, RESTRICTING ONLY TO NIGHT MILES
+    
+    agg_results['ca_deaths_w_own_adj'] = agg_results['fat_sob_nonveh_acc_any_dds'] + agg_results['fat_acc_any_dds'] # COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
+    agg_results['vsl_ca_deaths_w_own_adj'] = agg_results['ca_deaths_w_own_adj']*agg_results['dot_vsl'] # VSL OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
+    agg_results['ec_ca_deaths_w_own_adj'] = agg_results['vsl_ca_deaths_w_own_adj']/agg_results['annual_drinking_vmt'] # EXTERNAL COST OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS ARE COUNTABLE
+    
+    agg_results['ca_deaths_wo_own_adj'] = agg_results['fat_sob_nonveh_acc_any_dds'] + agg_results['fat_sob_driver_acc_any_dds'] # COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
+    agg_results['vsl_ca_deaths_wo_own_adj'] = agg_results['ca_deaths_wo_own_adj']*agg_results['dot_vsl'] # VSL OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
+    agg_results['ec_ca_deaths_wo_own_adj'] = agg_results['vsl_ca_deaths_wo_own_adj']/agg_results['annual_drinking_vmt'] # EXTERNAL COST OF COUNTERFACTUAL AVOIDABLE DEATHS, ASSUMING THAT OWN CAR DEATHS AREN'T COUNTABLE
+
+    agg_results['ca_acc'] = agg_results['acc_any_dds'] + agg_results['acc_any_fsndds'] # TOTAL NUMBER OF ACCIDENTS INVOLVING DRUNK DRIVERS
     
     return 'under construction'
