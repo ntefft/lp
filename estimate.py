@@ -111,17 +111,12 @@ def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps
                                                   num_driver_types,mirep=(i+1))
         res = fit_model(estimation_sample,bsreps)
         res_params[i] = res.final_params
-#        mi_res[0] += res_params[i,0]/mireps # add estimate to running mean of estimates, for final mi estimate
         mi_llf += res.llf
         mi_df_resid = res.df_resid
     
+    # get MI estimates and standard errors
     mi_res = mi_theta_se(res_params)
-#    
-#    # loop again to calculate final standard errors
-#    for i in range(0,mireps): 
-##        mi_res[:,1] += numpy.power(res_params[i,:,1],2)/mireps + ((1+(1/mireps))/(mireps-1))*numpy.power(res_params[i,:,1]-mi_res[:,1],2)
-#        mi_res[:,1] += numpy.power(res_params[i,:,1],2)/mireps + ((1+(1/mireps))/(mireps-1))*numpy.power(res_params[i,:,0]-mi_res[:,0],2)
-#        
+
     # report relevant model statistics
     print('MI Parameters (theta, lambda, N): ', mi_res[0])
     print('MI bootstrap standard errors (theta, lambda, N): ', mi_res[1])
