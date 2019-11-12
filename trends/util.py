@@ -340,14 +340,13 @@ def calc_drinking_externality(df_accident,df_vehicle,df_person,period_params,bac
     # estimates and standard errors, calculated from bootstrapped estimates, for the 2-d array of parameters
     mi_estimates = numpy.zeros((2,len(period_params.index),len(results_vars)))
     for miidx in range(0,mireps):    
+        print('Generating results for MI replicate ' + str(miidx+1))
         # for the given MI replicate build bootstrap estimates and standard errors
         bs_results = numpy.zeros((bsreps,len(period_params.index),len(results_vars)))
         for bsidx in range(0,bsreps):   
-            print('Generating results for bootstrap replicate ' + str(bsidx+1) + ' of MI replicate ' + str(miidx+1))
             df_externality = pandas.DataFrame(index=df_accident.index)
             if bsidx>0: # draw random samples within each year for bootstrapping
-                df_externality = df_externality.reset_index().set_index(['st_case']).groupby(['year']).apply(lambda x: x.sample(frac=1,replace=True))
-                df_externality = pandas.DataFrame(index=df_externality[[]].reset_index().set_index(['year','st_case']).index)
+                df_externality = df_externality.sample(frac=1,replace=True)
             # merge in relevant person info (don't need any vehicle info, and it makes merging more challenging)
             df_externality = df_externality.merge(df_person.reset_index().set_index(['year','st_case'])[['veh_no','per_no','seat_pos','inj_sev','mibac' + str(miidx+1)]],how='inner',on=['year','st_case']).reset_index().set_index(['year','st_case','veh_no','per_no'])
             # after person merge, assign count of vehicles
