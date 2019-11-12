@@ -24,15 +24,15 @@ df_person = pandas.read_csv('replication\\data\\df_person.csv')
 df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the index
 
 # set estimation parameters
-bsreps = 2 # bootstrap replicates for testing
-#bsreps = 100 # bootstrap replicates for replication
-mireps = 2 # multiple imputation replicates, for testing
-#mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
+#bsreps = 2 # bootstrap replicates for testing
+bsreps = 100 # bootstrap replicates for replication
+#mireps = 2 # multiple imputation replicates, for testing
+mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
 sy_p_t = 0.13 # state-year proportion missing threshold that best approximates L&P's results
 # drinking definitions 1 through 4
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary']
-#results_folder = 'replication\\results' # for saving estimation results
-results_folder = 'replication\\temp' # for testing
+results_folder = 'replication\\results' # for saving estimation results
+#results_folder = 'replication\\temp' # for testing
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
