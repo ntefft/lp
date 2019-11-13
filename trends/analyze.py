@@ -50,6 +50,7 @@ pickle.dump(sum_stats_df, open(results_folder + '\\table1.pkl', 'wb')) # pickle 
 sum_stats_df.T.to_excel(results_folder + '\\table1.xlsx') # Note: should format as text after opening Excel file
 
 # TABLE 2: Relative Risk and Prevalence of Alcohol-involved Driving by 5 year interval (BAC > 0)
+random.seed(1) # for exactly replicating the bootstrapped sample
 res_pkl = list() # pickled results for later use
 res_fmt = list() # formatted results for table
 for yr in range(firstyr,(lastyr+1),window): 
@@ -66,6 +67,7 @@ pickle.dump(res_pkl, open(results_folder + '\\table2.pkl', 'wb')) # pickle objec
 res_fmt_df.to_excel(results_folder + '\\table2.xlsx') # Note: should format as text after opening Excel file
 
 # TABLE 3: Relative Risk and Prevalence of Alcohol-involved Driving by 5 year interval (BAC > 0.08)
+random.seed(1) # for exactly replicating the bootstrapped sample
 res_pkl = list() # pickled results for later use
 res_fmt = list() # formatted results for table
 for yr in range(firstyr,(lastyr+1),window): 
