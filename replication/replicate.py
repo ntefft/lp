@@ -24,15 +24,15 @@ df_person = pandas.read_csv('replication\\data\\df_person.csv')
 df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the index
 
 # set estimation parameters
-bsreps = 2 # bootstrap replicates for testing
-#bsreps = 100 # bootstrap replicates for replication
-mireps = 2 # multiple imputation replicates, for testing
-#mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
+#bsreps = 2 # bootstrap replicates for testing
+bsreps = 100 # bootstrap replicates for replication
+#mireps = 2 # multiple imputation replicates, for testing
+mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
 sy_p_t = 0.13 # state-year proportion missing threshold that best approximates L&P's results
 # drinking definitions 1 through 4
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary']
-#results_folder = 'replication\\results' # for saving estimation results
-results_folder = 'replication\\temp' # for testing
+results_folder = 'replication\\results' # for saving estimation results
+#results_folder = 'replication\\temp' # for testing
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
@@ -198,7 +198,7 @@ for earliest_hour_raw in range(20,29):
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
     res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',roundround(model_df_resid+2)])
+                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['hour','theta','theta_se','lambda','lambda_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA4_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file   
 res_fmt = list() # list of results, formatted
@@ -212,6 +212,6 @@ for earliest_hour_raw in range(20,29):
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
     res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',roundround(model_df_resid+2)])
+                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['hour','theta','theta_se','lambda','lambda_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA4_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
