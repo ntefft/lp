@@ -36,6 +36,16 @@ results_folder = 'replication\\results' # for saving estimation results
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
+# test code
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_primary',
+                        bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
+mod_res = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps=2)
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_primary',
+                        bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=2,summarize_sample=False)
+mod_res = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps=2,mireps=2)
+
+
+
 # TABLE 1
 # Data for Table 1: Outline of LP Replication Exercise 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'police_report_only',
