@@ -7,7 +7,7 @@ Created on Wed May 15 11:37:00 2019
 This script generates summary statistics and estimation analysis results for the Dunn and Tefft (2019)
 replication of Levitt and Porter (2001).
 """
-import os, sys, pandas, pickle
+import os, sys, pandas, pickle, random
 # change working directory to GitHub path
 os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
 
@@ -62,6 +62,7 @@ analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983
 
 # TABLE 4
 # Data for Table 4 (top portion, definitions 1 through 4)
+random.seed(1) # for exactly replicating the bootstrapped sample
 for drink_def in drink_defs: 
     print("Calculating summary statistics for drinking definition: " + drink_def) 
     analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
@@ -76,6 +77,7 @@ analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983
                     bac_threshold=0.10,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 
 # TABLE 5, PANEL 1
+random.seed(1) # for exactly replicating the bootstrapped sample
 res_pkl = list() # pickled results for later use
 res_fmt = list() # list of results, formatted
 for drink_def in drink_defs: 
@@ -98,6 +100,7 @@ pickle.dump(res_pkl, open(results_folder + '\\table5_panel1.pkl', 'wb')) # pickl
 res_fmt_df.T.to_excel(results_folder + '\\table5_panel1.xlsx') # Note: should format as text after opening Excel file
 
 # TABLE 5, PANEL 2
+random.seed(1) # for exactly replicating the bootstrapped sample
 res_pkl = list() # pickled results for later use
 res_fmt = list() # list of results, formatted
 print("Estimating model for drinking definition: any_evidence") 
@@ -119,6 +122,7 @@ pickle.dump(res_pkl, open(results_folder + '\\table5_panel2.pkl', 'wb')) # pickl
 res_fmt_df.T.to_excel(results_folder + '\\table5_panel2.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX TABLE 1
+random.seed(1) # for exactly replicating the bootstrapped sample
 res_pkl = list() # pickled results for later use
 equal_mixings = [['all'],['hour'],['year','hour'],['year','weekend','hour'],['year','state','hour'],['year','state','weekend','hour']]
 for drink_def in drink_defs:     
@@ -147,6 +151,7 @@ res_fmt_df.T.to_excel(results_folder + '\\tableA1_panel_multiple_imputation.xlsx
 pickle.dump(res_pkl, open(results_folder + '\\tableA1.pkl', 'wb')) # pickle object for later use
 
 # APPENDIX FIGURE 1
+random.seed(1) # for exactly replicating the bootstrapped sample
 res_pkl = list() # pickled results for later use
 for drink_def in drink_defs: 
     res_fmt = list() # list of results, formatted
@@ -163,6 +168,7 @@ for drink_def in drink_defs:
 pickle.dump(res_pkl, open(results_folder + '\\figureA1.pkl', 'wb')) # pickle object for later use
 
 # APPENDIX FIGURE 2
+random.seed(1) # for exactly replicating the bootstrapped sample
 res_pkl = list() # pickled results for later use
 for drink_def in drink_defs: 
     res_fmt = list() # list of results, formatted
@@ -182,7 +188,8 @@ for drink_def in drink_defs:
     res_fmt_df.T.to_excel(results_folder + '\\figureA2_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
 pickle.dump(res_pkl, open(results_folder + '\\figureA2.pkl', 'wb')) # pickle object for later use
 
-# APPENDIX FIGURE 3    
+# APPENDIX FIGURE 3  
+random.seed(1) # for exactly replicating the bootstrapped sample  
 drink_def = 'police_report_primary'
 res_pkl = list() # pickled results for later use
 res_fmt = list() # list of results, formatted
@@ -210,6 +217,7 @@ res_fmt_df.T.to_excel(results_folder + '\\figureA3_multiple_imputation.xlsx') # 
 pickle.dump(res_pkl, open(results_folder + '\\figureA3.pkl', 'wb')) # pickle object for later use
 
 # APPENDIX FIGURE 4
+random.seed(1) # for exactly replicating the bootstrapped sample
 drink_def = 'police_report_primary'
 res_pkl = list() # pickled results for later use
 res_fmt = list() # list of results, formatted
