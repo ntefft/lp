@@ -7,7 +7,7 @@ Created on Nov 13 2019
 This script generates summary statistics and estimation analysis results for the Dunn and Tefft (2019)
 drinking with children analysis.
 """
-import os, sys, pandas, pickle
+import os, sys, pandas
 # change working directory to GitHub path
 os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
 
@@ -36,7 +36,6 @@ if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
 # TEST CODE
-res_pkl = list() # pickled results for later use
 res_fmt = list() # list of results, formatted
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1982,2017,20,4,'bac_test_primary',
                     bac_threshold=0,state_year_prop_threshold=1,mireps=False,summarize_sample=False)
@@ -44,21 +43,3 @@ mod_res, mod_llf, mod_df_resid = estimate.fit_model(analytic_sample,['year'],4,b
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1982,2017,20,4,'bac_test_primary',
                     bac_threshold=0,state_year_prop_threshold=1,mireps=10,summarize_sample=False)
 mod_res, mod_llf, mod_df_resid = estimate.fit_model_mi(analytic_sample,['year'],4,bsreps=5,mireps=10)
-
-
-
-
-equal_mixings = [['all'],['hour'],['year','hour'],['year','weekend','hour'],['year','state','hour'],['year','state','weekend','hour']]
-for drink_def in drink_defs:     
-    res_fmt = list() # list of results, formatted
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
-                    bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
-    for eq_mix in equal_mixings: 
-        print("Estimating model for drinking definition: " + drink_def) 
-        mod_res = estimate.fit_model(estimate.get_estimation_sample(analytic_sample,eq_mix,2),bsreps)
-        res_pkl.append([drink_def,eq_mix,mod_res])
-        res_fmt.append([eq_mix,round(mod_res.final_params[0][0],2),'('+str(round(mod_res.final_params[1][0],2))+')',
-                     round(mod_res.final_params[0][1],2),'('+str(round(mod_res.final_params[1][1],2))+')',(mod_res.df_resid+2)])
-    res_fmt_df = pandas.DataFrame(res_fmt,columns=['eq_mix','theta','theta_se','lambda','lambda_se','total_dof'])
-    res_fmt_df.T.to_excel(results_folder + '\\tableA1_panel_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
-
