@@ -6,7 +6,7 @@ Created on Tue Oct  8 13:03:22 2019
 
 This is a collection of functions used to create and estimate the LP model, including for multiple imputation.
 """
-import pandas, numpy, time # import packages
+import pandas, numpy # import packages
 from statsmodels.base.model import GenericLikelihoodModel
 
 # converts the analytic sample (see the util.get_analytic_sample function) into a form that can be used in estimation
@@ -56,7 +56,7 @@ def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=Fa
             estimation_sample.loc[estimation_sample['a_' + str(dt)] == 0,'a_miss'] = 1
         estimation_sample = estimation_sample[estimation_sample['a_miss'] == 0]
         estimation_sample = estimation_sample.drop(columns=['a_miss'])
-        print('Rows of estimation sample after dropping rows with zero single-car observations of either type: ')
+        print('Rows of estimation sample after dropping rows with zero single-car observations of any type: ')
         print(len(estimation_sample.index))
 
     return estimation_sample
