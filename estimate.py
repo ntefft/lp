@@ -93,7 +93,10 @@ def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=Fal
     # dim 1: estimate, std err; dim 2: theta, lambda, N; dim 3: driver types relative to type 1
     final_results = numpy.zeros((2,3,(num_driver_types-1)))
     final_results[0] = boot_results[0]
-    final_results[1] = bs_se(boot_results,axis=0)
+    if bsreps>1:    
+        final_results[1] = bs_se(boot_results,axis=0)
+    else:
+        final_results[1] = numpy.nan
     
     print('')
     print('PARAMETERS AND BOOTSTRAPPED STANDARD ERRORS')
