@@ -327,7 +327,7 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
     
     return analytic_sample
 
-def calc_drinking_externality(df_accident,df_vehicle,df_person,df_window,dot_vsl,equal_mixing,bac_threshold,mireps,bsreps):
+def calc_drinking_externality(df_accident,df_vehicle,df_person,df_window,equal_mixing,bac_threshold,mireps,bsreps):
     # bootstrapping using each MI replicate, then combining results as MI estimates and MI SE: https://arxiv.org/pdf/1602.07933v1.pdf
     bac_threshold_scaled = int(bac_threshold*100) # need to scale the threshold to match how the data are stored
 

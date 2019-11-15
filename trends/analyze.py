@@ -80,12 +80,12 @@ random.seed(1) # for exactly replicating the bootstrapped sample
 # here, include the end years of the calculation window, vehicle miles traveled from NHTSA, DOT VSL (using most recent)
 df_window = pandas.DataFrame(data={'year':windows_end,
                                    'annual_vmt':[1924330000000,2247150000000,2560370000000,2829340000000,3003200000000,2938500000000,3208500000000],
-                                    'dot_vsl':9600000})
+                                    'dot_vsl':9600000}).set_index(['year'])
 mod_res0 = util.calc_drinking_externality(df_accident,df_vehicle,df_person,df_window,['year','state','weekend','hour'],0,mireps,bsreps)
 mod_res8 = util.calc_drinking_externality(df_accident,df_vehicle,df_person,df_window,['year','state','weekend','hour'],0.08,mireps,bsreps)
 res_fmt = list() # formatted results for table
-for idx in range(0,df_window['year'].size):    
-    res_fmt.append([str(df_window['year'].iloc[idx]-window+1) + '-' + str(df_window['year'].iloc[idx]),
+for idx in range(0,df_window.index.size):    
+    res_fmt.append([str(df_window.index.values[idx]-window+1) + '-' + str(df_window.index.values[idx]),
                     round(mod_res0[0][idx][2],4),round(mod_res8[0][idx][2],4)])
     res_fmt.append(['','('+str(round(mod_res0[1][idx][2],4))+')','('+str(round(mod_res8[1][idx][2],4))+')'])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['year range','BAC > 0','BAC > 0.08'])
