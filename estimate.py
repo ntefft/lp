@@ -64,8 +64,8 @@ def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=Fa
 # fit the LP model using constructed estimation sample
 #def fit_model(estimation_sample,num_driver_types,bsreps=100):           
 def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=False):           
-    # dim 1: bootstrap replicate; dim 2: theta, lambda, N; dim 3: driver types relative to type 1
-    boot_results = numpy.zeros((bsreps,3,(num_driver_types-1)))
+    # dim 1: bootstrap replicate; dim 2: theta, lambda, N, eta; dim 3: driver types relative to type 1
+    boot_results = numpy.zeros((bsreps,4,(num_driver_types-1)))
     for bsr in range(0,bsreps):
         if bsr==0: # use the original sample
             boot_analytic_sample = analytic_sample.copy()
@@ -78,20 +78,23 @@ def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=Fal
         mod = Lp(estimation_sample,num_driver_types=num_driver_types) # create the model (modified GenericLikelihoodModel)    
         results = mod.fit(skip_hessian=True) # fit the model, skipping hessian calculation because we're bootstrapping
 #        print(results.summary()) # summarize the model fit
-        boot_results[bsr][0] = results.params[:(num_driver_types-1)] # thetas
-        boot_results[bsr][1] = results.params[(num_driver_types-1):] # lambdas
-        for i in range(0,(num_driver_types-1)): # Ns
+        boot_results[bsr][0] = results.params[:(num_driver_types-1)] # theta
+        boot_results[bsr][1] = results.params[(num_driver_types-1):] # lambda
+        for i in range(0,(num_driver_types-1)): # N
             boot_results[bsr][2][i] = (1/boot_results[bsr][1][i])*(estimation_sample['a_'+str(i+2)].sum()/estimation_sample['a_1'].sum())        
+        # P, the proportion of that driver type on the road (LP didn't assign a letter to this value)
+        for i in range(0,(num_driver_types-1)):
+            boot_results[bsr][3][i] = boot_results[bsr][2][i]/(1+numpy.sum(boot_results[bsr][2],axis=0))
         if bsr==0:
             model_llf = results.llf
             model_df_resid = results.df_resid
-        print('([theta], [lambda], [N]) estimated for bootstrap replicate '+str(bsr))
+        print('([theta], [lambda], [N], [P]) estimated for bootstrap replicate '+str(bsr))
         print(boot_results[bsr])
         print('Log-likelihood: ', results.llf)
         print('Residual degrees of freedom: ', results.df_resid)
         
-    # dim 1: estimate, std err; dim 2: theta, lambda, N; dim 3: driver types relative to type 1
-    final_results = numpy.zeros((2,3,(num_driver_types-1)))
+    # dim 1: estimate, std err; dim 2: theta, lambda, N, eta; dim 3: driver types relative to type 1
+    final_results = numpy.zeros((2,4,(num_driver_types-1)))
     final_results[0] = boot_results[0]
     if bsreps>1:    
         final_results[1] = bs_se(boot_results,axis=0)
@@ -101,9 +104,9 @@ def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=Fal
     print('')
     print('PARAMETERS AND BOOTSTRAPPED STANDARD ERRORS')
     print('*******************')
-    print('Parameters ([theta], [lambda], [N]):')
+    print('Parameters ([theta], [lambda], [N], [P]):')
     print(final_results[0])
-    print('Bootstrapped standard errors ([theta], [lambda], [N]):')
+    print('Bootstrapped standard errors ([theta], [lambda], [N], [P]):')
     print(final_results[1])
     print('Log-likelihood: ', model_llf)
     print('Residual degrees of freedom: ', model_df_resid)
@@ -114,7 +117,7 @@ def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=Fal
 # combines the results to produce final estimates and standard errors
 def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps=10):           
     # dimensions are mireps, estimates & standard errors, parameters, driver types relative to type 1
-    results_params = numpy.zeros((mireps,2,3,(num_driver_types-1)))
+    results_params = numpy.zeros((mireps,2,4,(num_driver_types-1)))
     mi_llf = 0
     mi_df_resid = 0
     # loop over mi replicates and estimate model for each
@@ -130,9 +133,9 @@ def fit_model_mi(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mireps
     print('')
     print('MI PARAMETERS AND MI/BOOTSTRAPPED STANDARD ERRORS')
     print('*******************')
-    print('MI Parameters (theta, lambda, N):')
+    print('MI Parameters ([theta], [lambda], [N], [P]):')
     print(mi_results[0])
-    print('MI bootstrapped standard errors (theta, lambda, N):')
+    print('MI bootstrapped standard errors ([theta], [lambda], [N], [P]):')
     print(mi_results[1])
     print('MI log-likelihood: ', mi_llf)
     print('MI residual degrees of freedom: ', mi_df_resid)

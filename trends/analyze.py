@@ -51,13 +51,12 @@ sum_stats_df.T.to_excel(results_folder + '\\table1.xlsx') # Note: should format 
 random.seed(1) # for exactly replicating the bootstrapped sample
 res_fmt = list() # formatted results for table
 for eyr in windows_end:
-    print("Estimating model for " + str(yr)) 
+    print("Estimating model for " + str(eyr)) 
     analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,(eyr-window+1),eyr,20,4,'impaired_vs_sober',
                         bac_threshold=0,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
-    res_fmt.append([(eyr-window+1),round(mod_res[0][0][0],2),round(mod_res[0][1][0],2),round(mod_res[0][2][0]/(1+mod_res[0][2][0]),3)])
-    # Note that N is converted into proportion of drinking drivers
-    res_fmt.append([eyr,'('+str(round(mod_res[1][0][0],2))+')','('+str(round(mod_res[1][1][0],2))+')','('+str(round(mod_res[1][2][0]/(1+mod_res[1][2][0]),3))+')'])
+    res_fmt.append([(eyr-window+1),round(mod_res[0][0][0],2),round(mod_res[0][1][0],2),round(mod_res[0][3][0],6)])
+    res_fmt.append([eyr,'('+str(round(mod_res[1][0][0],2))+')','('+str(round(mod_res[1][1][0],2))+')','('+str(format(round(mod_res[1][3][0],5),'.5f'))+')'])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['year range','theta','lambda','proportion drinking'])
 res_fmt_df.to_excel(results_folder + '\\table2.xlsx') # Note: should format as text after opening Excel file
 
@@ -69,9 +68,8 @@ for eyr in windows_end:
     analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,(eyr-window+1),eyr,20,4,'impaired_vs_sober',
                         bac_threshold=0.08,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
-    res_fmt.append([(eyr-window+1),round(mod_res[0][0][0],2),round(mod_res[0][1][0],2),round(mod_res[0][2][0]/(1+mod_res[0][2][0]),3)])
-    # Note that N is converted into proportion of drinking drivers
-    res_fmt.append([eyr,'('+str(round(mod_res[1][0][0],2))+')','('+str(round(mod_res[1][1][0],2))+')','('+str(round(mod_res[1][2][0]/(1+mod_res[1][2][0]),3))+')'])
+    res_fmt.append([(eyr-window+1),round(mod_res[0][0][0],2),round(mod_res[0][1][0],2),round(mod_res[0][3][0],6)])
+    res_fmt.append([eyr,'('+str(round(mod_res[1][0][0],2))+')','('+str(round(mod_res[1][1][0],2))+')','('+str(format(round(mod_res[1][3][0],5),'.5f'))+')'])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['year range','theta','lambda','proportion drinking'])
 res_fmt_df.to_excel(results_folder + '\\table3.xlsx') # Note: should format as text after opening Excel file
 
