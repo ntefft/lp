@@ -15,7 +15,7 @@ def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
     # either don't keep duplicate drivers, or drop the first or last of the duplicates
     df_driver = df_driver.loc[~df_driver.index.droplevel(['per_no']).duplicated(keep_duplicated)]
     if keep_per_no == False:
-        df_driver = df_driver.droplevel(['per_no'])
+        df_driver = df_driver.reset_index().set_index(['year','st_case','veh_no']).drop(columns=['per_no'])
     return df_driver
     
 # identifies a vehicle's driver as drinking, depending on drinking definition of interest
