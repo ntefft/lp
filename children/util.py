@@ -15,13 +15,13 @@ def get_driver(df_person, keep_duplicated = False, keep_per_no = False):
     # either don't keep duplicate drivers, or drop the first or last of the duplicates
     df_driver = df_driver.loc[~df_driver.index.droplevel(['per_no']).duplicated(keep_duplicated)]
     if keep_per_no == False:
-        df_driver = df_driver.droplevel(['per_no'])
+        df_driver = df_driver.reset_index().set_index(['year','st_case','veh_no']).drop(['per_no'],axis=1)
     return df_driver
     
 # identifies a vehicle's driver as drinking, depending on drinking definition of interest
 # for multiple imputation, returns a dataframe with a drink_status for each MI replicate
 def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mireps):
-    df_veh_driver = df_vehicle.merge(df_driver,how='left',left_index=True,right_index=True,validate='1:m') # merge in drivers from person file    
+    df_veh_driver = df_vehicle.merge(df_driver,how='left',left_index=True,right_index=True) # merge in drivers from person file    
     bac_threshold_scaled = bac_threshold*100 # need to scale the threshold to match how the data are stored
     if mireps == False:
         driver_bac = df_veh_driver['alcohol_test_result']
@@ -52,8 +52,8 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
         else:
             df_driver_drink_status = pandas.concat([df_veh_driver['drinking']]*mireps,axis=1)
         df_driver_drink_status = df_driver_drink_status.replace({8:numpy.nan, 9:numpy.nan})
-        df_driver_drink_status = df_driver_drink_status.mask((df_driver_drink_status.isna()).to_numpy() & (driver_bac==0).to_numpy(), 0)
-        df_driver_drink_status = df_driver_drink_status.mask((df_driver_drink_status.isna()).to_numpy() & (driver_bac>bac_threshold_scaled).to_numpy(), 1)
+        df_driver_drink_status = df_driver_drink_status.mask((df_driver_drink_status.isnull()).to_numpy() & (driver_bac==0).to_numpy(), 0)
+        df_driver_drink_status = df_driver_drink_status.mask((df_driver_drink_status.isnull()).to_numpy() & (driver_bac>bac_threshold_scaled).to_numpy(), 1)
     elif drinking_definition == 'bac_test_primary': # definition 4 in Levitt & Porter (2001)
         if mireps == False:
             df_driver_drink_status = df_veh_driver['drinking']
@@ -73,7 +73,7 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
                 df_driver_drink_status['drink_status' + str(mirep+1)] = numpy.nan
             dr_drink = pandas.concat([df_veh_driver['dr_drink']]*mireps,axis=1)
         df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy() | (dr_drink==0).to_numpy(), 0)
-        df_driver_drink_status = df_driver_drink_status.mask((driver_bac>=bac_threshold_scaled).to_numpy() & (~driver_bac.isna()).to_numpy() & (dr_drink!=0).to_numpy(), 1)
+        df_driver_drink_status = df_driver_drink_status.mask((driver_bac>=bac_threshold_scaled).to_numpy() & (~driver_bac.isnull()).to_numpy() & (dr_drink!=0).to_numpy(), 1)
     
     if mireps == False:
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
@@ -87,21 +87,21 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
 def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,bac_threshold,mireps):
     # collect missing info about the driver
     df_dr_miss = pandas.DataFrame(index=df_driver.index)
-    df_dr_miss['miss_age'] = (df_driver['age'].isna()) | (df_driver['age'] < 13) # set child drivers as missing values
-    df_dr_miss['miss_sex'] = df_driver['sex'].isna()
+    df_dr_miss['miss_age'] = (df_driver['age'].isnull()) | (df_driver['age'] < 13) # set child drivers as missing values
+    df_dr_miss['miss_sex'] = df_driver['sex'].isnull()
     
     # collect missing info about the vehicle
     df_veh_miss = pandas.DataFrame(index=df_vehicle.index)
-    df_veh_miss['miss_minor_blemishes'] = (df_vehicle['prev_acc'].isna() | df_vehicle['prev_spd'].isna() | df_vehicle['prev_oth'].isna()) 
-    df_veh_miss['miss_major_blemishes'] = (df_vehicle['prev_sus'].isna() | df_vehicle['prev_dwi'].isna()) 
+    df_veh_miss['miss_minor_blemishes'] = (df_vehicle['prev_acc'].isnull() | df_vehicle['prev_spd'].isnull() | df_vehicle['prev_oth'].isnull()) 
+    df_veh_miss['miss_major_blemishes'] = (df_vehicle['prev_sus'].isnull() | df_vehicle['prev_dwi'].isnull()) 
     df_veh_miss['miss_any_blemishes'] = (df_veh_miss['miss_minor_blemishes'] | df_veh_miss['miss_major_blemishes']) 
-    df_veh_miss['miss_drinking_status'] = pandas.DataFrame(veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mireps)).isna().any(axis='columns')
+    df_veh_miss['miss_drinking_status'] = pandas.DataFrame(veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mireps)).isnull().any(axis='columns')
     
     # collect missing info about the accident
     df_acc_miss = pandas.DataFrame(index=df_accident.index)
-    df_acc_miss['miss_hour'] = df_accident['hour'].isna()
-    df_acc_miss['miss_day_week'] = df_accident['day_week'].isna()
-    df_acc_miss['miss_state'] = df_accident['state'].isna()
+    df_acc_miss['miss_hour'] = df_accident['hour'].isnull()
+    df_acc_miss['miss_day_week'] = df_accident['day_week'].isnull()
+    df_acc_miss['miss_state'] = df_accident['state'].isnull()
     
     df_return_miss = df_acc_miss.merge(df_veh_miss.merge(df_dr_miss,how='left',on=['year','st_case','veh_no']),how='left',on=['year','st_case']).groupby(['year','st_case']).any()
     # flag anything missing excluding drinking status
@@ -116,7 +116,7 @@ def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,b
 def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,earliest_hour, 
                         latest_hour,drinking_definition,bac_threshold,state_year_prop_threshold,
                         mireps=False,summarize_sample=True):
-#
+
 #    # testing code
 #    first_year=1983
 #    last_year=1993
@@ -127,7 +127,7 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
 #    state_year_prop_threshold=1
 #    mireps=False
 #    summarize_sample=True
-#    
+    
     # start timer and summarize the initial data
     start = time.time()
     print("Building the analytic sample...")
@@ -140,7 +140,7 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
         print(len(get_driver(df_person)))
         
     # implement year range sample restriction
-    analytic_sample = df_accident.loc[range(first_year,last_year+1)] # restrict sample to selected years
+    analytic_sample = df_accident[df_accident.index.droplevel('st_case').isin(range(first_year,last_year+1))] # restrict sample to selected years
     if summarize_sample == True:
         print('Count of accidents after year sample restriction: ')
         print(len(analytic_sample.index))
@@ -155,17 +155,17 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
         print('Count of vehicles after excluding accidents with no recorded drivers: ')
         print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)].index))
         print('Count of accidents with missing hours: ')
-        print(len(analytic_sample.loc[analytic_sample['hour'].isna()]))
+        print(len(analytic_sample.loc[analytic_sample['hour'].isnull()]))
         print('Count of vehicles with missing hours: ')
-        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.loc[analytic_sample['hour'].isna()].index)].index))   
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.loc[analytic_sample['hour'].isnull()].index)].index))   
         acc_veh_count = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
         acc_veh_count = acc_veh_count.rename('acc_veh_count')
         print('Count of accidents by vehicles per accident, before hours restriction:')
         print(acc_veh_count.value_counts())
         print('Proportion of accidents with 3 or more drivers, before hours restriction:')
-        print(len(analytic_sample.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)/len(analytic_sample.index))
+        print(len(analytic_sample[analytic_sample.index.isin(acc_veh_count.loc[acc_veh_count>=3].index)])/len(analytic_sample.index))
         print('Proportion of drivers in accidents with 3 or more drivers, before hours restriction:')
-        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)])/len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)]))
+        print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample[analytic_sample.index.isin(acc_veh_count.loc[acc_veh_count>=3].index)].index)])/len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)]))
         
     # implement hours range restriction
     if earliest_hour > latest_hour: # wrap selected hours across midnight, and keep that sample
@@ -187,9 +187,8 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
         print(len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.merge(acc_veh_count.loc[acc_veh_count>=3],how='inner',on=['year','st_case']).index)])/len(df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)]))
         
     # implement restriction only keeping accidents that have 1 or 2 involved vehicles
-    acc_veh_count = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
-    acc_veh_count = acc_veh_count.rename('acc_veh_count')
-    analytic_sample = analytic_sample.merge(acc_veh_count.loc[acc_veh_count<=2],how='inner',on=['year','st_case'])
+    analytic_sample['acc_veh_count'] = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
+    analytic_sample = analytic_sample.loc[analytic_sample['acc_veh_count']<=2]
     if summarize_sample == True:    
         print('Count of accidents after vehicle count sample restriction: ')
         print(len(analytic_sample.index))
@@ -201,16 +200,16 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
         print(len(tmp_driver.loc[tmp_driver['drinking'].isin([8,9])])/len(tmp_driver))
         print('Proportion of all drivers involved in all fatal crashes lacking a police evaluation: ')
         tmp_all_driver = get_driver(df_person)
-        print(len(tmp_all_driver.loc[tmp_all_driver['drinking'].isin([8,9]) | tmp_all_driver['drinking'].isna()])/len(tmp_all_driver))        
+        print(len(tmp_all_driver.loc[tmp_all_driver['drinking'].isin([8,9]) | tmp_all_driver['drinking'].isnull()])/len(tmp_all_driver))        
         if mireps == False: # can only obtain single driver BAC if not MI (and BAC is never missing for MI)
             print('Count and proportion of drivers missing BAC test after vehicle count sample restriction: ')
             tmp_driver['driver_bac'] = tmp_driver['alcohol_test_result']
-            print(len(tmp_driver.loc[tmp_driver['driver_bac'].isna()]))
-            print(len(tmp_driver.loc[tmp_driver['driver_bac'].isna()])/len(tmp_driver))
+            print(len(tmp_driver.loc[tmp_driver['driver_bac'].isnull()]))
+            print(len(tmp_driver.loc[tmp_driver['driver_bac'].isnull()])/len(tmp_driver))
             print('Cross-tabulation of police evaluation and BAC test result: ')
             tmp_driver['bac_gt0_na'] = tmp_driver['driver_bac']
             tmp_driver.loc[tmp_driver['bac_gt0_na']>0,'bac_gt0_na'] = 1
-            tmp_driver.loc[tmp_driver['bac_gt0_na'].isna(),'bac_gt0_na'] = 2
+            tmp_driver.loc[tmp_driver['bac_gt0_na'].isnull(),'bac_gt0_na'] = 2
             print(pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True))
             print(pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True).apply(lambda r: r/len(tmp_driver)))
        
@@ -223,8 +222,8 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
         tmp_driver_veh = get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(analytic_sample.index)]).merge(df_vehicle,how='inner',on=['year','st_case','veh_no'])
         tmp_driver_veh['at_flag'] = numpy.nan
         tmp_driver_veh['driver_bac'] = tmp_driver_veh['alcohol_test_result']
-        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (tmp_driver_veh['driver_bac'].isna())] = 0
-        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (~tmp_driver_veh['driver_bac'].isna())] = 1
+        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (tmp_driver_veh['driver_bac'].isnull())] = 0
+        tmp_driver_veh['at_flag'].loc[(tmp_driver_veh['dr_drink'] == 1) & (~tmp_driver_veh['driver_bac'].isnull())] = 1
         df_acc_at_flag = tmp_driver_veh.merge(analytic_sample[['state']],how='inner',on=['year','st_case'])
         df_acc_at_flag = df_acc_at_flag.reset_index().set_index(['year','st_case','state'])
         df_st_yr_prop_at = df_acc_at_flag[['at_flag']].groupby(['year','state']).mean()
