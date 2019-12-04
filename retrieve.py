@@ -9,7 +9,7 @@ data folder for later extraction.
 """
 
 # import necessary packages
-import ftplib, os, sys
+import ftplib, os
 
 """
    USER-DEFINED ATTRIBUTES 
@@ -18,28 +18,18 @@ import ftplib, os, sys
     The default values are 1975 (the first year of FARS) to 2017 (the latest available year)
     
 2) The directory to which the data folder containing the FARS data files will exist.
-    The user MUST set the 'parent' directory. 
+    The user MUST set their own working directory before running the script. 
     There is NO DEFAULT. 
-    Failure to provide a parent will cause a syntax error
     We recommend wherever the GitHub repository is cloned.
         for example parent_dir = "C:\\Users\\JoeEconomist\\GitHub"
-    Data will then be placed into the subfolder .\lpdt\data
+    Data will then be placed into the subfolder .\lp\data
 """
 
 # FARS data range
 firstYear = 1975
 latestYear = 2017
 
-# Parent directory
-parent_dir = 
-
-
 """ Retrieval Script """
-
-# change working directory to GitHub path
-if not os.path.exists(parent_dir + '\\GitHub\\lpdt'):
-        os.makedirs(parent_dir + '\\GitHub\\lpdt')
-os.chdir(parent_dir + '\\GitHub\\lpdt')
 
 # connect to NHTSA's FTP server
 ftp = ftplib.FTP('ftp.nhtsa.dot.gov')
