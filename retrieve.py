@@ -22,7 +22,8 @@ import ftplib, os, sys
     There is NO DEFAULT. 
     Failure to provide a parent will cause a syntax error
     We recommend wherever the GitHub repository is cloned.
-    Data will then be placed into the subfolder .\GitHub\lpdt\data
+        for example parent_dir = "C:\\Users\\JoeEconomist\\GitHub"
+    Data will then be placed into the subfolder .\lpdt\data
 """
 
 # FARS data range
