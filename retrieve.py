@@ -19,10 +19,9 @@ import ftplib, os
     
 2) The directory to which the data folder containing the FARS data files will exist.
     The user MUST set their own working directory before running the script. 
-    There is NO DEFAULT. 
-    We recommend wherever the GitHub repository is cloned.
-        for example parent_dir = "C:\\Users\\JoeEconomist\\GitHub"
-    Data will then be placed into the subfolder .\lp\data
+    We recommend the folder of the cloned GitHub repository.
+        For example, set the working directory to "C:\\Users\\JoeEconomist\\GitHub\\lp"
+    Data will then be placed into the subfolder .\data
 """
 
 # FARS data range
