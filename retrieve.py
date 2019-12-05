@@ -17,7 +17,7 @@ import ftplib, os
 1) The years over which FARS datasets are retrieved. 
     The default values are 1975 (the first year of FARS) to 2017 (the latest available year)
     
-2) The directory to which the data folder containing the FARS data files will exist.
+2) The working directory.
     The user MUST set their own working directory before running the script. 
     We recommend the folder of the cloned GitHub repository.
         For example, set the working directory to "C:\\Users\\JoeEconomist\\GitHub\\lp"
