@@ -7,9 +7,17 @@ Created on Wed May 15 11:37:00 2019
 This script generates summary statistics and estimation analysis results for the Dunn and Tefft (2019)
 replication of Levitt and Porter (2001).
 """
-import os, sys, pandas, random
-# change working directory to GitHub path
-os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
+import os, pandas, random
+
+"""
+   USER-DEFINED ATTRIBUTES 
+      
+1) The working directory.
+    The user MUST set their own working directory before running the script. 
+    We recommend the folder of the cloned GitHub repository.
+        For example, set the working directory to "C:\\Users\\JoeEconomist\\GitHub\\lp"
+    Results will then be placed into the project results subfolder (specified below)
+"""
 
 # import LP utility and model fit functions
 import estimate

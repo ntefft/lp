@@ -9,10 +9,17 @@ and the data definitions are harmonized across years. Accident, vehicle, and per
 for later use in the replication.
 """
 # import necessary packages
-import os, sys, numpy, pandas, shutil, us, zipfile
+import os, numpy, pandas, shutil, us, zipfile
 
-# change working directory to GitHub path
-os.chdir(sys.path[0] + '\\Documents\\GitHub\\lp')
+"""
+   USER-DEFINED ATTRIBUTES 
+      
+1) The working directory.
+    The user MUST set their own working directory before running the script. 
+    We recommend the folder of the cloned GitHub repository.
+        For example, set the working directory to "C:\\Users\\JoeEconomist\\GitHub\\lp"
+    Data will then be placed into the project subfolder .\replication\data
+"""
 
 # load US state abbreviations for later merge
 df_states = pandas.DataFrame.from_dict(us.states.mapping('fips', 'abbr'),orient='index',columns=['state_abbr'])
