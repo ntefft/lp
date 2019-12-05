@@ -19,6 +19,15 @@ import os, pandas
     Results will then be placed into the project results subfolder (specified below)
 """
 
+"""
+DRIVER TYPES:
+    1) Sober and driving with children
+    2) Sober and driving without children
+    3) Drinking and driving with children
+    4) Drinking and driving without children
+
+"""
+
 # import LP utility and model fit functions
 import estimate
 from children import util
@@ -47,7 +56,8 @@ if not os.path.exists(results_folder):
 res_fmt = list() # list of results, formatted
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1982,2017,20,4,'bac_test_primary',
                     bac_threshold=0,state_year_prop_threshold=1,mireps=False,summarize_sample=False)
-mod_res, mod_llf, mod_df_resid = estimate.fit_model(analytic_sample,['year'],4,bsreps=2)
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1982,2017,20,4,'bac_test_primary',
-                    bac_threshold=0,state_year_prop_threshold=1,mireps=10,summarize_sample=False)
-mod_res, mod_llf, mod_df_resid = estimate.fit_model_mi(analytic_sample,['year'],4,bsreps=5,mireps=10)
+mod_res, mod_llf, mod_df_resid = estimate.fit_model(analytic_sample,['year'],4,bsreps=bsreps)
+res_fmt.append([round(mod_res[0][0][0],2),round(mod_res[0][0][1],2),round(mod_res[0][0][2],2),round(mod_res[0][1][0],2),round(mod_res[0][1][1],2),round(mod_res[0][1][2],2),round(mod_res[0][3][0],6),round(mod_res[0][3][1],6),round(mod_res[0][3][2],6)])
+res_fmt.append(['('+str(round(mod_res[1][0][0],2))+')','('+str(round(mod_res[1][0][1],2))+')','('+str(round(mod_res[1][0][2],2))+')','('+str(round(mod_res[1][1][0],2))+')','('+str(round(mod_res[1][1][1],2))+')','('+str(round(mod_res[1][1][2],2))+')','('+str(format(round(mod_res[1][3][0],5),'.5f'))+')','('+str(format(round(mod_res[1][3][1],5),'.5f'))+')','('+str(format(round(mod_res[1][3][2],5),'.5f'))+')'])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['theta2','theta3','theta4','lambda2','lambda3','lambda4','proportion2','proportion3','proportion4'])
+res_fmt_df.to_excel(results_folder + '\\test_results.xlsx') # Note: should format as text after opening Excel file
