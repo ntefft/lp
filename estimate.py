@@ -250,8 +250,9 @@ def mi_theta_se(reps_theta_se, axis=0):
     # average across MI replicates for final estimate
     mi_estimates[0] = reps_theta_se[:,0].mean(axis=axis)
     
-    # loop through MI replicates for final standard errors
+    # loop through MI replicates and calculate square root for final standard errors
     for miidx in range(0,mireps): 
         mi_estimates[1] += numpy.power(reps_theta_se[miidx,1],2)/mireps + ((1+(1/mireps))/(mireps-1))*numpy.power(reps_theta_se[miidx,0]-mi_estimates[0],2)
-        
+    mi_estimates[1] = numpy.sqrt(mi_estimates[1])
+    
     return mi_estimates
