@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 11 2019
+Created on Nov 13 2019
 
 @author: Nathan Tefft
 
-This script extracts data from the raw FARS data files to be used for generating nationwide trends results for the LP method. 
+This script extracts data from the raw FARS data files to be used for generating drinking driving with children results for the LP method. 
 Selected variables are included, and the data definitions are harmonized across years. 
 Accident, vehicle, and person dataframes are constructed and stored in csv files for later use in the analysis.
 """
@@ -18,7 +18,7 @@ import os, numpy, pandas, shutil, us, zipfile
     The user MUST set their own working directory before running the script. 
     We recommend the folder of the cloned GitHub repository.
         For example, set the working directory to "C:\\Users\\JoeEconomist\\GitHub\\lp"
-    Data will then be placed into the project subfolder .\trends\data
+    Data will then be placed into the project subfolder .\children\data
 """
 
 # load US state abbreviations for later merge
@@ -112,7 +112,7 @@ for yr in range(firstYear,latestYear+1):
     df_per_yr.loc[df_per_yr.seat_pos>=98, 'seat_pos'] = numpy.nan # seat position
     df_per_yr.loc[df_per_yr.inj_sev.isin([8,9]), 'inj_sev'] = numpy.nan # injury_severity
     
-    # clean mulptiple imputation variables, e.g. harmonize names, ensure correct datatypes, and record missing variables 
+    # clean multiple imputation variables, e.g. harmonize names, ensure correct datatypes, and record missing variables 
     df_mi_yr[['st_case','veh_no','per_no']] = df_mi_yr[['st_case','veh_no','per_no']].astype('int')
     if 'year' in df_mi_yr.columns: # preparing to reset the index
        df_mi_yr.drop(columns='year',inplace=True) 
@@ -130,9 +130,9 @@ for yr in range(firstYear,latestYear+1):
         del vars()['df_' + ft + '_yr']
 
 # summarize the constructed dataframes and save to csv files
-if not os.path.exists('trends\\data'):
-    os.makedirs('trends\\data')
+if not os.path.exists('children\\data'):
+    os.makedirs('children\\data')
 for dfn in ['df_accident','df_vehicle','df_person']:
     print('Describing dataframe ' + dfn)
     print(vars()[dfn].describe())
-    vars()[dfn].to_csv('trends\\data\\' + dfn + '.csv')
+    vars()[dfn].to_csv('children\\data\\' + dfn + '.csv')
