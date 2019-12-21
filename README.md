@@ -14,7 +14,7 @@ This repo has been designated a "template" so that you can easily copy it and ge
   2. Use a command line, e.g. Git Bash, to add the original lp repo as the upstream repo: enter "cd <new-repo>" and then "git remote add upstream https://github.com/ntefft/lp.git".
   3. Perform a first pull request by entering "git pull upstream master --allow-unrelated-histories". This will align the commit histories so that subsequent pulls should be straightforward.
   4. Anytime you wish to subsequently pull updates made to the lp repo, enter "git pull upstream master".
-  5. To maintain file organization and be able to easily pull updates to the replication code, we recommended that you create a copy of the "replication" folder, rename it, and then edit the contained scripts for your new project. 
+  5. To maintain file organization and be able to easily pull updates to the replication code, we recommend that you create a copy of the "replication" folder, rename it, and then edit the contained scripts for your new project. 
 
 References
 Levitt, Steven D., and Jack Porter. How Dangerous are Drinking Drivers? Journal of Political Economy, 2001, 109(6), pgs. 1198-1237.
