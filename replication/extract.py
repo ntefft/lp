@@ -16,8 +16,9 @@ latestYear = 2017
 
 # install and import necessary packages
     # not all packages are standard installs
-    # for example, us is not included in anaconda
+        # for example, us is not included in anaconda
     # you may need to install some of these packages in the command line
+        # for example, you may be able to install us with the command "pip install us"
 
 import os, numpy, pandas, shutil, us, zipfile
 
@@ -89,7 +90,7 @@ for yr in range(firstYear,lastYear+1):
     index_list=['year']
     for (dataset, id) in zip(fars_datasets,dataset_ids):
         file = open('data\\extracted\\' + dataset + '.csv', errors='ignore')
-        df_list_yr[dataset]=pandas.read_csv(file)
+        df_list_yr[dataset]=pandas.read_csv(file,low_memory=False)
         file.close()
     
         df_list_yr[dataset].columns = df_list_yr[dataset].columns.str.lower() # make all columns lowercase
