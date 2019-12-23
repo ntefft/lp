@@ -44,7 +44,7 @@ import os, numpy, pandas, shutil, us, zipfile
     Data will then be placed into the subfolder .\replication\data
 """
 
-#os.chdir("C:\\Users\\dunnr\\Documents\\GitHub\\lpdt")
+#os.chdir("C:\\Users\\")
 
 # FARS data range
 firstYear = 1982
@@ -177,3 +177,7 @@ for dfn in ['accident', 'vehicle', 'person']:
     print('Describing dataframe ' + dfn)
     print(df_list[dfn].describe())
     df_list[dfn].to_csv('replication\\data\\df_' + dfn + '.csv')
+
+# Delete dictionaries so garbage collector releases memory from dataframes
+df_list.clear()
+df_list_yr.clear()
