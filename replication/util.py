@@ -73,7 +73,7 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
                 df_driver_drink_status['drink_status' + str(mirep+1)] = numpy.nan
             dr_drink = pandas.concat([df_veh_driver['dr_drink']]*mireps,axis=1)
         df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy() | (dr_drink==0).to_numpy(), 0)
-        df_driver_drink_status = df_driver_drink_status.mask((driver_bac>=bac_threshold_scaled).to_numpy() & (~driver_bac.isnull()).to_numpy() & (dr_drink!=0).to_numpy(), 1)
+        df_driver_drink_status = df_driver_drink_status.mask((driver_bac!=0).to_numpy() & (~driver_bac.isnull()).to_numpy() & (driver_bac>=bac_threshold_scaled).to_numpy() & (dr_drink!=0).to_numpy(), 1)
     
     if mireps == False:
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
