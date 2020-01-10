@@ -8,7 +8,7 @@ To replicate LP, run the following scripts, in order:
   2. extract.py (in the "replication" folder) to extract and harmonize relevant estimation variables across survey years. The combined accident, vehicle, and person files are then stored in the replication\data folder.
   3. replicate.py (in the "replication" folder) to generate summary statistics and estimation results that replicate LP.
 
-This repo has been designated a "template" so that you can easily copy it and generate your own project based on the estimation methods coded herein. If you would like your new project to receive any updates to our original lp code, we recommend creating your project as follows:
+This repo has been designated a "template" so that you can easily copy it and generate your own project based on the estimation methods coded herein. Please note that the code has only been thoroughly tested for the purpose of replicating LP, so any departure from the models presented in the replication may require substantial additional code modifications and/or testing. If you would like your new project to receive any updates to our original lp code, we recommend creating your project as follows:
 
   1. Click on the "Use this template" button when viewing the lp repo on GitHub.com, and follow GitHub's instructions for creating a new copy of the lp repo.
   2. Use a command line, e.g. Git Bash, to add the original lp repo as the upstream repo: enter "cd <new-repo>" and then "git remote add upstream https://github.com/ntefft/lp.git".
