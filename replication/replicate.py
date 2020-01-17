@@ -39,8 +39,8 @@ mireps = 10 # multiple imputation replicates for replication (FARS includes a to
 sy_p_t = 0.13 # state-year proportion missing threshold that best approximates L&P's results
 # drinking definitions 1 through 4
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary']
-# results_folder = 'replication\\results' # for saving estimation results
-results_folder = 'replication\\temp' # for testing
+results_folder = 'replication\\results' # for saving estimation results
+# results_folder = 'replication\\temp' # for testing
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
@@ -83,14 +83,18 @@ for drink_def in drink_defs:
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
     res_fmt.append([drink_def,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
+                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                 round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                 round(model_df_resid+2)])
 print("Estimating multiple imputation model:") 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_primary',
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','total_dof'])
+                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                 round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                 round(model_df_resid+2)])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\table5_panel1.xlsx') # Note: should format as text after opening Excel file
 
 # TABLE 5, PANEL 2
@@ -101,14 +105,18 @@ analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983
                     bac_threshold=0.1,state_year_prop_threshold=1,mireps=False,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
 res_fmt.append([drink_def,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-             round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
+             round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+             round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+             round(model_df_resid+2)])
 print("Estimating multiple imputation model:") 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
                         bac_threshold=0.1,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','total_dof'])
+                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                 round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                 round(model_df_resid+2)])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\table5_panel2.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX TABLE 1
@@ -122,8 +130,10 @@ for drink_def in drink_defs:
         print("Estimating model for drinking definition: " + drink_def) 
         mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,eq_mix,2,bsreps)
         res_fmt.append([eq_mix,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-    res_fmt_df = pandas.DataFrame(res_fmt,columns=['eq_mix','theta','theta_se','lambda','lambda_se','total_dof'])
+                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                     round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                     round(model_df_resid+2)])
+    res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
     res_fmt_df.T.to_excel(results_folder + '\\tableA1_panel_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
 res_fmt = list() # list of results, formatted
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_primary',
@@ -132,8 +142,10 @@ for eq_mix in equal_mixings:
     print("Estimating multiple imputation model:")     
     mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,eq_mix,2,bsreps,mireps)
     res_fmt.append([eq_mix,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-res_fmt_df = pandas.DataFrame(res_fmt,columns=['eq_mix','theta','theta_se','lambda','lambda_se','total_dof'])
+                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                     round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                     round(model_df_resid+2)])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\tableA1_panel_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX FIGURE 1
@@ -146,8 +158,10 @@ for drink_def in drink_defs:
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
         mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
         res_fmt.append([yr,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-    res_fmt_df = pandas.DataFrame(res_fmt,columns=['year','theta','theta_se','lambda','lambda_se','total_dof'])
+                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                     round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                     round(model_df_resid+2)])
+    res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
     res_fmt_df.T.to_excel(results_folder + '\\figureA1_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
 
 # APPENDIX FIGURE 2
@@ -164,8 +178,10 @@ for drink_def in drink_defs:
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
         mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
         res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-    res_fmt_df = pandas.DataFrame(res_fmt,columns=['hour','theta','theta_se','lambda','lambda_se','total_dof'])
+                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                     round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                     round(model_df_resid+2)])
+    res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
     res_fmt_df.T.to_excel(results_folder + '\\figureA2_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
 
 # APPENDIX FIGURE 3  
@@ -178,8 +194,10 @@ for yr in range(1983,1994):
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
     res_fmt.append([yr,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-res_fmt_df = pandas.DataFrame(res_fmt,columns=['year','theta','theta_se','lambda','lambda_se','total_dof'])
+                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                 round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                 round(model_df_resid+2)])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA3_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file   
 res_fmt = list() # list of results, formatted
 for yr in range(1983,1994): 
@@ -188,8 +206,10 @@ for yr in range(1983,1994):
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
     res_fmt.append([yr,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-res_fmt_df = pandas.DataFrame(res_fmt,columns=['year','theta','theta_se','lambda','lambda_se','total_dof'])
+                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                     round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                     round(model_df_resid+2)])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA3_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX FIGURE 4
@@ -206,8 +226,10 @@ for earliest_hour_raw in range(20,29):
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
     res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-res_fmt_df = pandas.DataFrame(res_fmt,columns=['hour','theta','theta_se','lambda','lambda_se','total_dof'])
+                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                 round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                 round(model_df_resid+2)])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA4_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file   
 res_fmt = list() # list of results, formatted
 for earliest_hour_raw in range(20,29): 
@@ -220,6 +242,8 @@ for earliest_hour_raw in range(20,29):
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
     mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
     res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',round(model_df_resid+2)])
-res_fmt_df = pandas.DataFrame(res_fmt,columns=['hour','theta','theta_se','lambda','lambda_se','total_dof'])
+                     round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                     round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                     round(model_df_resid+2)])
+res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA4_multiple_imputation.xlsx') # Note: should format as text after opening Excel file

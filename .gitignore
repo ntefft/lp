@@ -1,6 +1,7 @@
 # Data folders (to be separately constructed on each machine)
 data/
 replication/data/
+replication/temp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
