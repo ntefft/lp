@@ -187,6 +187,24 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
         print('Count and proportion of drivers with drinking==8 or drinking==9 after vehicle count sample restriction: ')
         print(len(tmp_driver.loc[tmp_driver['drinking'].isin([8,9])]))
         print(len(tmp_driver.loc[tmp_driver['drinking'].isin([8,9])])/len(tmp_driver))
+        print('Count of accidents by vehicles per accident, after vehicle count restriction:')
+        acc_veh_count = df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)].groupby(['year','st_case']).size() # series that counts vehicles in each accident
+        acc_veh_count = acc_veh_count.rename('acc_veh_count')
+        print(acc_veh_count.value_counts())
+        tmp_driver1 = tmp_driver.merge(acc_veh_count.loc[acc_veh_count==1],how='inner',on=['year','st_case'])
+        print('Proportion of one-vehicle crashes with driver lacking a police evaluation: ')
+        print(len(tmp_driver1.loc[tmp_driver1['drinking'].isin([8,9]) | tmp_driver1['drinking'].isnull()])/len(tmp_driver1))
+        print('Proportion of one-vehicle crashes with driver lacking a BAC test result: ')
+        print(len(tmp_driver1.loc[tmp_driver1['alcohol_test_result'].isnull()])/len(tmp_driver1))
+        print('Proportion of one-vehicle crashes with driver lacking a police evaluation and BAC test result: ')
+        print(len(tmp_driver1.loc[(tmp_driver1['drinking'].isin([8,9]) | tmp_driver1['drinking'].isnull()) & tmp_driver1['alcohol_test_result'].isnull()])/len(tmp_driver1))
+        tmp_driver2 = tmp_driver.merge(acc_veh_count.loc[acc_veh_count==2],how='inner',on=['year','st_case'])
+        print('Proportions of two-vehicle crashes with driver(s) lacking a police evaluation: ')
+        print((tmp_driver2['drinking'].isin([8,9]) | tmp_driver2['drinking'].isnull()).groupby(['year','st_case']).mean().value_counts()/len(tmp_driver2.groupby(['year','st_case']).mean()))
+        print('Proportions of two-vehicle crashes with driver(s) lacking a BAC test result: ')
+        print((tmp_driver2['alcohol_test_result'].isnull()).groupby(['year','st_case']).mean().value_counts()/len(tmp_driver2.groupby(['year','st_case']).mean()))       
+        print('Proportions of two-vehicle crashes with driver(s) lacking a police evaluation and a BAC test result: ')
+        print(((tmp_driver2['drinking'].isin([8,9]) | tmp_driver2['drinking'].isnull()) & tmp_driver2['alcohol_test_result'].isnull()).groupby(['year','st_case']).mean().value_counts()/len(tmp_driver2.groupby(['year','st_case']).mean()))
         print('Proportion of all drivers involved in all fatal crashes lacking a police evaluation: ')
         tmp_all_driver = get_driver(df_person)
         print(len(tmp_all_driver.loc[tmp_all_driver['drinking'].isin([8,9]) | tmp_all_driver['drinking'].isnull()])/len(tmp_all_driver))        
@@ -202,7 +220,6 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
             print(pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True))
             print(pandas.crosstab(tmp_driver['bac_gt0_na'],tmp_driver['drinking'],margins=True).apply(lambda r: r/len(tmp_driver)))
        
-    
     if (drinking_definition == 'impaired_vs_sober') & (mireps == False): # not applicable to MI
         # calculate how many are dropped according to the following supplemental analysis under definition 5:
         # page 1214, paragraph 2: "we exclude all crashes occurring in states that do not test at least 95 percent of those judged to have been drinking 
