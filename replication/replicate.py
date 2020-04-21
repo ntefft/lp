@@ -58,23 +58,23 @@ analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 
-# TABLE 4
-# Data for Table 4 (top portion, definitions 1 through 4)
+# TABLE 5
+# Data for Table 5 (top portion, definitions 1 through 4)
 random.seed(1) # for exactly replicating the bootstrapped sample
 for drink_def in drink_defs: 
     print("Calculating summary statistics for drinking definition: " + drink_def) 
     analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
                     bac_threshold=0,state_year_prop_threshold=1,mireps=False,summarize_sample=True)
-# Data for Table 4 (last column, optimized to match L&P for missing state-years)
+# Data for Table 5 (last column, optimized to match L&P for missing state-years)
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
-# Data for Table 4 (bottom portion)
+# Data for Table 5 (bottom portion)
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
                     bac_threshold=0.10,state_year_prop_threshold=1,mireps=False,summarize_sample=True)
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
                     bac_threshold=0.10,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 
-# TABLE 5, PANEL 1
+# TABLE 6, PANEL 1
 random.seed(1) # for exactly replicating the bootstrapped sample
 res_fmt = list() # list of results, formatted
 for drink_def in drink_defs: 
@@ -95,9 +95,9 @@ res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mo
                  round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
                  round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
-res_fmt_df.T.to_excel(results_folder + '\\table5_panel1.xlsx') # Note: should format as text after opening Excel file
+res_fmt_df.T.to_excel(results_folder + '\\table6_panel1.xlsx') # Note: should format as text after opening Excel file
 
-# TABLE 5, PANEL 2
+# TABLE 6, PANEL 2
 random.seed(1) # for exactly replicating the bootstrapped sample
 res_fmt = list() # list of results, formatted
 print("Estimating model for drinking definition: any_evidence") 
@@ -117,7 +117,7 @@ res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mo
                  round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
                  round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
-res_fmt_df.T.to_excel(results_folder + '\\table5_panel2.xlsx') # Note: should format as text after opening Excel file
+res_fmt_df.T.to_excel(results_folder + '\\table6_panel2.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX TABLE 1
 random.seed(1) # for exactly replicating the bootstrapped sample
@@ -247,3 +247,4 @@ for earliest_hour_raw in range(20,29):
                      round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA4_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
+
