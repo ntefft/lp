@@ -104,7 +104,7 @@ print("Estimating model for drinking definition: any_evidence")
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
                     bac_threshold=0.1,state_year_prop_threshold=1,mireps=False,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
-res_fmt.append([drink_def,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
+res_fmt.append(['impaired_vs_sober',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
              round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
              round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
              round(model_df_resid+2)])
