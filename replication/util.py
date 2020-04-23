@@ -66,6 +66,7 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
             df_driver_drink_status = df_driver_drink_status.mask((driver_bac<=bac_threshold_scaled).to_numpy(), 0)
         else:
             df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy(), 0)
+            df_driver_drink_status = df_driver_drink_status.mask((driver_bac>0).to_numpy() & (driver_bac<=bac_threshold_scaled).to_numpy(), numpy.nan)
         df_driver_drink_status = df_driver_drink_status.mask((driver_bac>bac_threshold_scaled).to_numpy(), 1)
         df_driver_drink_status = df_driver_drink_status.replace({8:numpy.nan, 9:numpy.nan})        
     elif drinking_definition == 'impaired_vs_sober': # definition 5 in Levitt & Porter (2001)
@@ -78,8 +79,21 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
             for mirep in range(0,mireps):
                 df_driver_drink_status['drink_status' + str(mirep+1)] = numpy.nan
             dr_drink = pandas.concat([df_veh_driver['dr_drink']]*mireps,axis=1)
+            drinking = pandas.concat([df_veh_driver['drinking']]*mireps,axis=1)
         df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy() | (dr_drink==0).to_numpy(), 0)
         df_driver_drink_status = df_driver_drink_status.mask((driver_bac!=0).to_numpy() & (~driver_bac.isnull()).to_numpy() & (driver_bac>=bac_threshold_scaled).to_numpy() & (dr_drink!=0).to_numpy(), 1)
+    elif drinking_definition == 'bac_test_only': # new definition that should be used when running MI with BAC only
+        if mireps == False:
+            df_driver_drink_status = pandas.Series(index=df_veh_driver.index,data=numpy.nan)
+        else:
+            df_driver_drink_status = pandas.DataFrame(index=df_veh_driver.index)
+            for mirep in range(0,mireps):
+                df_driver_drink_status['drink_status' + str(mirep+1)] = numpy.nan
+        if drop_below_threshold == False:
+            df_driver_drink_status = df_driver_drink_status.mask((driver_bac<=bac_threshold_scaled).to_numpy(), 0)
+        else:
+            df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy(), 0)
+        df_driver_drink_status = df_driver_drink_status.mask((driver_bac>bac_threshold_scaled).to_numpy(), 1)
     
     if mireps == False:
         df_driver_drink_status = df_driver_drink_status.rename('drink_status')
@@ -88,6 +102,7 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
             df_driver_drink_status.columns.values[mirep] = 'drink_status' + str(mirep+1)
     
     return df_driver_drink_status
+
 
 # identifies accidents with missing data (that are relevant for exclusion from L&P estimation)
 def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,bac_threshold,mireps,drop_below_threshold):
