@@ -39,8 +39,8 @@ mireps = 10 # multiple imputation replicates for replication (FARS includes a to
 sy_p_t = 0.13 # state-year proportion missing threshold that best approximates L&P's results
 # drinking definitions 1 through 4
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary']
-results_folder = 'replication\\results' # for saving estimation results
-# results_folder = 'replication\\temp' # for testing
+# results_folder = 'replication\\results' # for saving estimation results
+results_folder = 'replication\\temp' # for testing
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
@@ -87,7 +87,7 @@ for drink_def in drink_defs:
                  round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
                  round(model_df_resid+2)])
 print("Estimating multiple imputation model:") 
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_primary',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
@@ -109,12 +109,16 @@ res_fmt.append([drink_def,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][
              round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
              round(model_df_resid+2)])
 print("Estimating multiple imputation model:") 
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
                         bac_threshold=0.1,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+# need to estimate separate model, not dropping the legal drinkers, for unbiased estimate of prevalence
+analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+                        bac_threshold=0.1,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False,drop_below_threshold=False)
+mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
-                 round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
+                 round(mod_res_p[0][3][0],3),'('+str(format(round(mod_res_p[1][3][0],3),'.3f'))+')',
                  round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\table6_panel2.xlsx') # Note: should format as text after opening Excel file
