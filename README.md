@@ -11,10 +11,10 @@ To replicate LP, run the following scripts, in order:
 This repo has been designated a "template" so that you can easily copy it and generate your own project based on the estimation methods coded herein. Please note that the code has only been thoroughly tested for the purpose of replicating LP, so any departure from the models presented in the replication may require substantial additional code modifications and/or testing. If you would like your new project to receive any updates to our original lp code, we recommend creating your project as follows:
 
   1. Click on the "Use this template" button when viewing the lp repo on GitHub.com, and follow GitHub's instructions for creating a new copy of the lp repo.
-  2. Use a command line, e.g. Git Bash, to add the original lp repo as the upstream repo: enter "cd <new-repo>" and then "git remote add upstream https://github.com/ntefft/lp.git".
+  2. Use a command line, e.g. Git Bash, to add the original lp repo as the upstream repo: enter "cd [new-repo]" and then "git remote add upstream https://github.com/ntefft/lp.git".
   3. Perform a first pull request by entering "git pull upstream master --allow-unrelated-histories". This will align the commit histories so that subsequent pulls should be straightforward.
   4. Anytime you wish to subsequently pull updates made to the lp repo, enter "git pull upstream master".
-  5. To maintain file organization and be able to easily pull updates to the replication code, we recommend that you create a copy of the "replication" folder, rename it, and then edit the contained scripts for your new project. 
+  5. If you want to maintain updates to the replication code without automatically merging them into your code, you can create a copy of the "replication" folder, rename it, and then edit the contained scripts for your new project. 
 
 References
 Levitt, Steven D., and Jack Porter. How Dangerous are Drinking Drivers? Journal of Political Economy, 2001, 109(6), pgs. 1198-1237.
