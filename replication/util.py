@@ -70,17 +70,18 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
         df_driver_drink_status = df_driver_drink_status.mask((driver_bac>bac_threshold_scaled).to_numpy(), 1)
         df_driver_drink_status = df_driver_drink_status.replace({8:numpy.nan, 9:numpy.nan})        
     elif drinking_definition == 'impaired_vs_sober': # definition 5 in Levitt & Porter (2001)
-        df_driver_drink_status = pandas.Series(index=df_veh_driver.index)
         if mireps == False:
-            df_driver_drink_status = pandas.Series(index=df_veh_driver.index)
             dr_drink = df_veh_driver['dr_drink']
+            df_driver_drink_status = pandas.Series(index=df_veh_driver.index,data=numpy.nan)
         else:
+            dr_drink = pandas.concat([df_veh_driver['dr_drink']]*mireps,axis=1)    
             df_driver_drink_status = pandas.DataFrame(index=df_veh_driver.index)
             for mirep in range(0,mireps):
-                df_driver_drink_status['drink_status' + str(mirep+1)] = numpy.nan
-            dr_drink = pandas.concat([df_veh_driver['dr_drink']]*mireps,axis=1)
-        df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy() | (dr_drink==0).to_numpy(), 0)
-        df_driver_drink_status = df_driver_drink_status.mask((driver_bac!=0).to_numpy() & (~driver_bac.isnull()).to_numpy() & (driver_bac>=bac_threshold_scaled).to_numpy(), 1)
+                df_driver_drink_status['drink_status' + str(mirep+1)] = numpy.nan    
+        df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy() | (dr_drink==0).to_numpy(), 0)    
+        if drop_below_threshold == False:
+            df_driver_drink_status = df_driver_drink_status.mask((driver_bac<=bac_threshold_scaled).to_numpy() | (dr_drink==0).to_numpy(), 0)        
+        df_driver_drink_status = df_driver_drink_status.mask((driver_bac>bac_threshold_scaled).to_numpy(), 1)
     elif drinking_definition == 'bac_test_only': # new definition that should be used when running MI with BAC only
         if mireps == False:
             df_driver_drink_status = pandas.Series(index=df_veh_driver.index,data=numpy.nan)
@@ -88,10 +89,9 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
             df_driver_drink_status = pandas.DataFrame(index=df_veh_driver.index)
             for mirep in range(0,mireps):
                 df_driver_drink_status['drink_status' + str(mirep+1)] = numpy.nan
+        df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy(), 0)
         if drop_below_threshold == False:
             df_driver_drink_status = df_driver_drink_status.mask((driver_bac<=bac_threshold_scaled).to_numpy(), 0)
-        else:
-            df_driver_drink_status = df_driver_drink_status.mask((driver_bac==0).to_numpy(), 0)
         df_driver_drink_status = df_driver_drink_status.mask((driver_bac>bac_threshold_scaled).to_numpy(), 1)
     
     if mireps == False:
@@ -102,9 +102,8 @@ def veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_thres
     
     return df_driver_drink_status
 
-
 # identifies accidents with missing data (that are relevant for exclusion from L&P estimation)
-def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,bac_threshold,mireps,drop_below_threshold):
+def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,bac_threshold,mireps):
     # collect missing info about the driver
     df_dr_miss = pandas.DataFrame(index=df_driver.index)
     df_dr_miss['miss_age'] = (df_driver['age'].isnull()) | (df_driver['age'] < 13) # set child drivers as missing values
@@ -115,7 +114,7 @@ def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,b
     df_veh_miss['miss_minor_blemishes'] = (df_vehicle['prev_acc'].isnull() | df_vehicle['prev_spd'].isnull() | df_vehicle['prev_oth'].isnull()) 
     df_veh_miss['miss_major_blemishes'] = (df_vehicle['prev_sus'].isnull() | df_vehicle['prev_dwi'].isnull()) 
     df_veh_miss['miss_any_blemishes'] = (df_veh_miss['miss_minor_blemishes'] | df_veh_miss['miss_major_blemishes']) 
-    df_veh_miss['miss_drinking_status'] = pandas.DataFrame(veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mireps, drop_below_threshold)).isnull().any(axis='columns')
+    df_veh_miss['miss_drinking_status'] = pandas.DataFrame(veh_dr_drinking_status(df_vehicle, df_driver, drinking_definition, bac_threshold, mireps, drop_below_threshold=False)).isnull().any(axis='columns')
     
     # collect missing info about the accident
     df_acc_miss = pandas.DataFrame(index=df_accident.index)
@@ -264,7 +263,7 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
     # get dataframe of booleans indicating whether each variable has missing data (or all of them are missing)
     df_acc_miss_flag = accident_missing_data(analytic_sample, df_vehicle[df_vehicle.index.droplevel('veh_no').isin(analytic_sample.index)],
                                              get_driver(df_person[df_person.index.droplevel(['veh_no','per_no']).isin(analytic_sample.index)]),
-                                             drinking_definition, bac_threshold, mireps, drop_below_threshold)
+                                             drinking_definition, bac_threshold, mireps)
     if summarize_sample == True:    
         print('Proportion of accidents missing information about various and any characteristics:')
         print(df_acc_miss_flag.mean())
@@ -328,8 +327,8 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
     
     # code driver types as types 1 & 2 in the two-type case, or 1, 2, 3, & 4 in the four-type case
     if mireps==False:
-       analytic_sample['drink_status'] = analytic_sample['drink_status'].replace({0:1, 1:2}) # driver type 1 if non-drinker, driver type 2 if drinker
-       analytic_sample = analytic_sample.rename(columns={'drink_status':'driver_type'})
+        analytic_sample['drink_status'] = analytic_sample['drink_status'].replace({0:1, 1:2}) # driver type 1 if non-drinker, driver type 2 if drinker
+        analytic_sample = analytic_sample.rename(columns={'drink_status':'driver_type'})
     else:
         for mirep in range(0,mireps):
             analytic_sample['drink_status'+str(mirep+1)] = analytic_sample['drink_status'+str(mirep+1)].replace({0:1, 1:2}) # driver type 1 if non-drinker, driver type 2 if drinker

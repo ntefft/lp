@@ -32,7 +32,7 @@ df_person = pandas.read_csv('replication\\data\\df_person.csv')
 df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the index
 
 # set estimation parameters
-# bsreps = 2 # bootstrap replicates for testing
+# bsreps = 1 # bootstrap replicates for testing
 bsreps = 100 # bootstrap replicates for replication
 # mireps = 2 # multiple imputation replicates, for testing
 mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
@@ -102,7 +102,7 @@ random.seed(1) # for exactly replicating the bootstrapped sample
 res_fmt = list() # list of results, formatted
 print("Estimating model for drinking definition: any_evidence") 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
-                    bac_threshold=0.1,state_year_prop_threshold=1,mireps=False,summarize_sample=False)
+                    bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
 res_fmt.append(['impaired_vs_sober',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
              round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
@@ -110,11 +110,11 @@ res_fmt.append(['impaired_vs_sober',round(mod_res[0][0][0],2),'('+str(round(mod_
              round(model_df_resid+2)])
 print("Estimating multiple imputation model:") 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
-                        bac_threshold=0.1,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False)
+                        bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=True)
 mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
 # need to estimate separate model, not dropping the legal drinkers, for unbiased estimate of prevalence
 analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
-                        bac_threshold=0.1,state_year_prop_threshold=1,mireps=mireps,summarize_sample=False,drop_below_threshold=False)
+                        bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False,drop_below_threshold=False)
 mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
@@ -251,4 +251,3 @@ for earliest_hour_raw in range(20,29):
                      round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\figureA4_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
-
