@@ -103,12 +103,27 @@ res_fmt = list() # list of results, formatted
 print("Estimating model for drinking definition: any_evidence") 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
                     bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
+as_ivs = analytic_sample # for use below
 mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
 res_fmt.append(['impaired_vs_sober',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
              round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
              round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
              round(model_df_resid+2)])
-print("Estimating multiple imputation model:") 
+print("Estimating multiple imputation model using impaired_vs_sober sample:") 
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+                        bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
+analytic_sample = analytic_sample[analytic_sample.index.isin(as_ivs.index)]
+mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+# need to estimate separate model, not dropping the legal drinkers, for unbiased estimate of prevalence
+analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+                        bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False,drop_below_threshold=False)
+analytic_sample = analytic_sample[analytic_sample.index.isin(as_ivs.index)]
+mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
+                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                 round(mod_res_p[0][3][0],3),'('+str(format(round(mod_res_p[1][3][0],3),'.3f'))+')',
+                 round(model_df_resid+2)])
+print("Estimating full multiple imputation model:") 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
                         bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
 mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
@@ -117,9 +132,9 @@ analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,19
                         bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False,drop_below_threshold=False)
 mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
-                 round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
-                 round(mod_res_p[0][3][0],3),'('+str(format(round(mod_res_p[1][3][0],3),'.3f'))+')',
-                 round(model_df_resid+2)])
+                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
+                  round(mod_res_p[0][3][0],3),'('+str(format(round(mod_res_p[1][3][0],3),'.3f'))+')',
+                  round(model_df_resid+2)])
 res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
 res_fmt_df.T.to_excel(results_folder + '\\table6_panel2.xlsx') # Note: should format as text after opening Excel file
 
