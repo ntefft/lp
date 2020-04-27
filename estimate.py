@@ -6,7 +6,7 @@ Created on Tue Oct  8 13:03:22 2019
 
 This is a collection of functions used to create and estimate the LP model, including for multiple imputation.
 """
-import pandas, numpy # import packages
+import pandas, numpy, random # import packages
 from statsmodels.base.model import GenericLikelihoodModel
 
 # converts the analytic sample (see the util.get_analytic_sample function) into a form that can be used in estimation
@@ -63,8 +63,9 @@ def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=Fa
 
 # fit the LP model using constructed estimation sample
 #def fit_model(estimation_sample,num_driver_types,bsreps=100):           
-def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=False):           
+def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=False,rseed=1):           
     # dim 1: bootstrap replicate; dim 2: theta, lambda, N, eta; dim 3: driver types relative to type 1
+    random.seed(rseed) # for exactly replicating the bootstrapped sample
     boot_results = numpy.zeros((bsreps,4,(num_driver_types-1)))
     for bsr in range(0,bsreps):
         if bsr==0: # use the original sample

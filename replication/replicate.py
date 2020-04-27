@@ -7,7 +7,7 @@ Created on Wed May 15 11:37:00 2019
 This script generates summary statistics and estimation analysis results for the Dunn and Tefft (2019)
 replication of Levitt and Porter (2001).
 """
-import os, pandas, random
+import os, pandas
 
 """
    USER-DEFINED ATTRIBUTES 
@@ -32,15 +32,15 @@ df_person = pandas.read_csv('replication\\data\\df_person.csv')
 df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the index
 
 # set estimation parameters
-# bsreps = 1 # bootstrap replicates for testing
-bsreps = 100 # bootstrap replicates for replication
-# mireps = 2 # multiple imputation replicates, for testing
-mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
+bsreps = 2 # bootstrap replicates for testing
+# bsreps = 100 # bootstrap replicates for replication
+mireps = 2 # multiple imputation replicates, for testing
+# mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
 sy_p_t = 0.13 # state-year proportion missing threshold that best approximates L&P's results
 # drinking definitions 1 through 4
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary']
-results_folder = 'replication\\results' # for saving estimation results
-# results_folder = 'replication\\temp' # for testing
+# results_folder = 'replication\\results' # for saving estimation results
+results_folder = 'replication\\temp' # for testing
 if not os.path.exists(results_folder):
         os.makedirs(results_folder) # generate results directory, if it doesn't exist
 
@@ -60,7 +60,6 @@ analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983
 
 # TABLE 5
 # Data for Table 5 (top portion, definitions 1 through 4)
-random.seed(1) # for exactly replicating the bootstrapped sample
 for drink_def in drink_defs: 
     print("Calculating summary statistics for drinking definition: " + drink_def) 
     analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
@@ -75,7 +74,6 @@ analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983
                     bac_threshold=0.10,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 
 # TABLE 6, PANEL 1
-random.seed(1) # for exactly replicating the bootstrapped sample
 res_fmt = list() # list of results, formatted
 for drink_def in drink_defs: 
     print("Estimating model for drinking definition: " + drink_def) 
@@ -98,7 +96,6 @@ res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','l
 res_fmt_df.T.to_excel(results_folder + '\\table6_panel1.xlsx') # Note: should format as text after opening Excel file
 
 # TABLE 6, PANEL 2
-random.seed(1) # for exactly replicating the bootstrapped sample
 res_fmt = list() # list of results, formatted
 print("Estimating model for drinking definition: any_evidence") 
 analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
@@ -139,7 +136,6 @@ res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','l
 res_fmt_df.T.to_excel(results_folder + '\\table6_panel2.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX TABLE 1
-random.seed(1) # for exactly replicating the bootstrapped sample
 equal_mixings = [['all'],['hour'],['year','hour'],['year','weekend','hour'],['year','state','hour'],['year','state','weekend','hour']]
 for drink_def in drink_defs:     
     res_fmt = list() # list of results, formatted
@@ -168,7 +164,6 @@ res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','l
 res_fmt_df.T.to_excel(results_folder + '\\tableA1_panel_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX FIGURE 1
-random.seed(1) # for exactly replicating the bootstrapped sample
 for drink_def in drink_defs: 
     res_fmt = list() # list of results, formatted
     for yr in range(1983,1994): 
@@ -184,7 +179,6 @@ for drink_def in drink_defs:
     res_fmt_df.T.to_excel(results_folder + '\\figureA1_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
 
 # APPENDIX FIGURE 2
-random.seed(1) # for exactly replicating the bootstrapped sample
 for drink_def in drink_defs: 
     res_fmt = list() # list of results, formatted
     for earliest_hour_raw in range(20,29): 
@@ -204,7 +198,6 @@ for drink_def in drink_defs:
     res_fmt_df.T.to_excel(results_folder + '\\figureA2_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
 
 # APPENDIX FIGURE 3  
-random.seed(1) # for exactly replicating the bootstrapped sample  
 drink_def = 'police_report_primary'
 res_fmt = list() # list of results, formatted
 for yr in range(1983,1994): 
@@ -232,7 +225,6 @@ res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','l
 res_fmt_df.T.to_excel(results_folder + '\\figureA3_multiple_imputation.xlsx') # Note: should format as text after opening Excel file
 
 # APPENDIX FIGURE 4
-random.seed(1) # for exactly replicating the bootstrapped sample
 drink_def = 'police_report_primary'
 res_fmt = list() # list of results, formatted
 for earliest_hour_raw in range(20,29): 
