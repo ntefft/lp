@@ -1,6 +1,4 @@
-# lp: Estimating the prevalence and relative risk of drinking drivers
-
-Dunn, Richard A. and Nathan Tefft. Replicating the Levitt and Porter Estimates of Drunk Driving. Journal of Applied Econometrics, forthcoming.
+# lp: Dunn, Richard A. and Nathan Tefft. Replicating the Levitt and Porter Estimates of Drunk Driving. Journal of Applied Econometrics, forthcoming.
 
 This repo contains scripts implementing the estimation methods developed by Levitt and Porter (2001), hereafter LP. The scripts allow for direct download and extraction of the raw data from the Fatality Analysis Reporting System (FARS) from the National Highway Transportation Safety Administration (NHTSA), estimation of the maximum likelihood model, and replication of LP.
 
