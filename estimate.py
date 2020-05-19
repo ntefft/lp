@@ -49,6 +49,12 @@ def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=Fa
         estimation_sample = estimation_sample.sum().to_frame().transpose()
     print('Rows of estimation sample after collapsing by equal mixing: ')
     print(len(estimation_sample.index))
+    
+    # need to store one-vehicle crash share parameters before dropping missing 
+    one_veh_crash_ratio = numpy.zeros((num_driver_types-1))
+    for i in range(0,(num_driver_types-1)):
+        one_veh_crash_ratio[i] = estimation_sample['a_'+str(i+2)].sum()/estimation_sample['a_1'].sum()
+    
     if 'all' not in equal_mixing:
         # drop observations where there are no (one-vehicle, driver type 1) or no (one-vehicle, driver type 2) crashes [otherwise, model won't converge]
         estimation_sample['a_miss'] = 0
@@ -59,6 +65,8 @@ def get_estimation_sample(analytic_sample,equal_mixing,num_driver_types,mirep=Fa
         print('Rows of estimation sample after dropping rows with zero single-car observations of any type: ')
         print(len(estimation_sample.index))
 
+    estimation_sample.one_veh_crash_ratio = one_veh_crash_ratio # add attribute for use during estimation
+    
     return estimation_sample
 
 # fit the LP model using constructed estimation sample
@@ -81,8 +89,10 @@ def fit_model(analytic_sample,equal_mixing,num_driver_types,bsreps=100,mirep=Fal
 #        print(results.summary()) # summarize the model fit
         boot_results[bsr][0] = results.params[:(num_driver_types-1)] # theta
         boot_results[bsr][1] = results.params[(num_driver_types-1):] # lambda
+        
         for i in range(0,(num_driver_types-1)): # N
-            boot_results[bsr][2][i] = (1/boot_results[bsr][1][i])*(estimation_sample['a_'+str(i+2)].sum()/estimation_sample['a_1'].sum())        
+            boot_results[bsr][2][i] = (1/boot_results[bsr][1][i])*estimation_sample.one_veh_crash_ratio[i]   
+            
         # P, the proportion of that driver type on the road (LP didn't assign a letter to this value)
         for i in range(0,(num_driver_types-1)):
             boot_results[bsr][3][i] = boot_results[bsr][2][i]/(1+numpy.sum(boot_results[bsr][2],axis=0))
