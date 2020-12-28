@@ -32,10 +32,11 @@ df_person = pandas.read_csv('replication\\data\\df_person.csv')
 df_person.set_index(['year','st_case','veh_no','per_no'],inplace=True) # set the index
 
 # set estimation parameters
-# bsreps = 1 # bootstrap replicates for testing
+# bsreps = 2 # bootstrap replicates for testing
 bsreps = 100 # bootstrap replicates for replication
 # mireps = 2 # multiple imputation replicates, for testing
 mireps = 10 # multiple imputation replicates for replication (FARS includes a total of 10)
+driver_types = [['sober'],['drinking']]
 sy_p_t = 0.13 # state-year proportion missing threshold that best approximates L&P's results
 # drinking definitions 1 through 4
 drink_defs = ['police_report_only','any_evidence','police_report_primary','bac_test_primary']
@@ -46,48 +47,48 @@ if not os.path.exists(results_folder):
 
 # TABLE 1
 # Data for Table 1: Outline of LP Replication Exercise 
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'police_report_only',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'police_report_only',
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 # Data for item 9 of Table 1: Outline of LP Replication Exercise  
 # (definition 5 (supplemental analysis) so need only look at the section "FOR BOTTOM HALF OF TABLE 1" )
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'impaired_vs_sober',
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 
 # TABLE 2
 # Data for Table 2: Distribution of police officer judgement of alcohol involvement and BAC test results (see section "Cross-tab for Table 2")
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'any_evidence',
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 
 # TABLE 5
 # Data for Table 5 (top portion, definitions 1 through 4)
 for drink_def in drink_defs: 
     print("Calculating summary statistics for drinking definition: " + drink_def) 
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
+    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,drink_def,
                     bac_threshold=0,state_year_prop_threshold=1,mireps=False,summarize_sample=True)
 # Data for Table 5 (last column, optimized to match L&P for missing state-years)
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'any_evidence',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'any_evidence',
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 # Data for Table 5 (bottom portion)
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'impaired_vs_sober',
                     bac_threshold=0.10,state_year_prop_threshold=1,mireps=False,summarize_sample=True)
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'impaired_vs_sober',
                     bac_threshold=0.10,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=True)
 
 # TABLE 6, PANEL 1
 res_fmt = list() # list of results, formatted
 for drink_def in drink_defs: 
     print("Estimating model for drinking definition: " + drink_def) 
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
+    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,drink_def,
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
-    mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
+    mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps)
     res_fmt.append([drink_def,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                  round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
                  round(model_df_resid+2)])
 print("Estimating multiple imputation model:") 
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'bac_test_only',
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
-mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps,mireps=mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                  round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -98,36 +99,36 @@ res_fmt_df.T.to_excel(results_folder + '\\table6_panel1.xlsx') # Note: should fo
 # TABLE 6, PANEL 2
 res_fmt = list() # list of results, formatted
 print("Estimating model for drinking definition: any_evidence") 
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'impaired_vs_sober',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'impaired_vs_sober',
                     bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
 as_ivs = analytic_sample # for use below
-mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
+mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps)
 res_fmt.append(['impaired_vs_sober',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
              round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
              round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
              round(model_df_resid+2)])
 print("Estimating multiple imputation model using impaired_vs_sober sample:") 
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'bac_test_only',
                         bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
 analytic_sample = analytic_sample[analytic_sample.index.isin(as_ivs.index)]
-mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps,mireps=mireps)
 # need to estimate separate model, not dropping the legal drinkers, for unbiased estimate of prevalence
-analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'bac_test_only',
                         bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False,drop_below_threshold=False)
 analytic_sample = analytic_sample[analytic_sample.index.isin(as_ivs.index)]
-mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps,mireps=mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                  round(mod_res_p[0][3][0],3),'('+str(format(round(mod_res_p[1][3][0],3),'.3f'))+')',
                  round(model_df_resid+2)])
 print("Estimating full multiple imputation model:") 
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'bac_test_only',
                         bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
-mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps,mireps=mireps)
 # need to estimate separate model, not dropping the legal drinkers, for unbiased estimate of prevalence
-analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_only',
+analytic_sample_p = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'bac_test_only',
                         bac_threshold=0.1,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False,drop_below_threshold=False)
-mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+mod_res_p,model_llf_p,model_df_resid_p = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps,mireps=mireps)
 res_fmt.append(['multiple_imputation',round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                   round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                   round(mod_res_p[0][3][0],3),'('+str(format(round(mod_res_p[1][3][0],3),'.3f'))+')',
@@ -139,11 +140,11 @@ res_fmt_df.T.to_excel(results_folder + '\\table6_panel2.xlsx') # Note: should fo
 equal_mixings = [['all'],['hour'],['year','hour'],['year','weekend','hour'],['year','state','hour'],['year','state','weekend','hour']]
 for drink_def in drink_defs:     
     res_fmt = list() # list of results, formatted
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,drink_def,
+    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,drink_def,
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
     for eq_mix in equal_mixings: 
         print("Estimating model for drinking definition: " + drink_def) 
-        mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,eq_mix,2,bsreps)
+        mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,eq_mix,driver_types,bsreps=bsreps)
         res_fmt.append([eq_mix,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                      round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                      round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -151,11 +152,11 @@ for drink_def in drink_defs:
     res_fmt_df = pandas.DataFrame(res_fmt,columns=['drink_def','theta','theta_se','lambda','lambda_se','proportion','proportion_se','total_dof'])
     res_fmt_df.T.to_excel(results_folder + '\\tableA1_panel_' + drink_def + '.xlsx') # Note: should format as text after opening Excel file    
 res_fmt = list() # list of results, formatted
-analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,20,4,'bac_test_primary',
+analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[20,4],driver_types,'bac_test_primary',
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
 for eq_mix in equal_mixings: 
     print("Estimating multiple imputation model:")     
-    mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,eq_mix,2,bsreps,mireps)
+    mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,eq_mix,driver_types,bsreps=bsreps,mireps=mireps)
     res_fmt.append([eq_mix,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                      round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                      round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -168,9 +169,9 @@ for drink_def in drink_defs:
     res_fmt = list() # list of results, formatted
     for yr in range(1983,1994): 
         print("Estimating model for drinking definition " + drink_def + " in year " + str(yr)) 
-        analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,yr,yr,20,4,drink_def,
+        analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[yr,yr],[20,4],driver_types,drink_def,
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
-        mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
+        mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps)
         res_fmt.append([yr,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                      round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                      round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -187,9 +188,9 @@ for drink_def in drink_defs:
         else:
             earliest_hour = earliest_hour_raw
         print("Estimating model for drinking definition " + drink_def + " in hour " + str(earliest_hour)) 
-        analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,earliest_hour,earliest_hour,drink_def,
+        analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[earliest_hour,earliest_hour],driver_types,drink_def,
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
-        mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
+        mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps)
         res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                      round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                      round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -202,9 +203,9 @@ drink_def = 'police_report_primary'
 res_fmt = list() # list of results, formatted
 for yr in range(1983,1994): 
     print("Estimating model for drinking definition " + drink_def + " in year " + str(yr)) 
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,yr,yr,20,4,drink_def,
+    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[yr,yr],[20,4],driver_types,drink_def,
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
-    mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
+    mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps)
     res_fmt.append([yr,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                  round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -214,9 +215,9 @@ res_fmt_df.T.to_excel(results_folder + '\\figureA3_' + drink_def + '.xlsx') # No
 res_fmt = list() # list of results, formatted
 for yr in range(1983,1994): 
     print("Estimating multiple imputation model in year " + str(yr)) 
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,yr,yr,20,4,'bac_test_primary',
+    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[yr,yr],[20,4],driver_types,'bac_test_primary',
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
-    mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+    mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps,mireps=mireps)
     res_fmt.append([yr,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                      round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                      round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -233,9 +234,9 @@ for earliest_hour_raw in range(20,29):
     else:
         earliest_hour = earliest_hour_raw    
     print("Estimating model for drinking definition " + drink_def + " in hour " + str(earliest_hour)) 
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,earliest_hour,earliest_hour,drink_def,
+    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[earliest_hour,earliest_hour],driver_types,drink_def,
                     bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=False,summarize_sample=False)
-    mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],2,bsreps)
+    mod_res,model_llf,model_df_resid = estimate.fit_model(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps)
     res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                  round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                  round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',
@@ -249,9 +250,9 @@ for earliest_hour_raw in range(20,29):
     else:
         earliest_hour = earliest_hour_raw    
     print("Estimating multiple imputation model in hour " + str(earliest_hour)) 
-    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,1983,1993,earliest_hour,earliest_hour,'bac_test_primary',
+    analytic_sample = util.get_analytic_sample(df_accident,df_vehicle,df_person,[1983,1993],[earliest_hour,earliest_hour],driver_types,'bac_test_primary',
                         bac_threshold=0,state_year_prop_threshold=sy_p_t,mireps=mireps,summarize_sample=False)
-    mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],2,bsreps,mireps)
+    mod_res,model_llf,model_df_resid = estimate.fit_model_mi(analytic_sample,['year','state','weekend','hour'],driver_types,bsreps=bsreps,mireps=mireps)
     res_fmt.append([earliest_hour,round(mod_res[0][0][0],2),'('+str(round(mod_res[1][0][0],2))+')',
                      round(mod_res[0][1][0],2),'('+str(round(mod_res[1][1][0],2))+')',
                      round(mod_res[0][3][0],3),'('+str(format(round(mod_res[1][3][0],3),'.3f'))+')',

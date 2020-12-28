@@ -132,10 +132,15 @@ def accident_missing_data(df_accident,df_vehicle,df_driver,drinking_definition,b
 
 # from the extracted FARS variables, builds the analytic sample of accident-vehicle-drivers
 # allows several parameters to be set for selecting the analytic sample to be used
-def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,earliest_hour, 
-                        latest_hour,drinking_definition,bac_threshold,state_year_prop_threshold,
+def get_analytic_sample(df_accident,df_vehicle,df_person,year_range,hour_range,driver_types, 
+                        drinking_definition,bac_threshold,state_year_prop_threshold,
                         mireps=False,summarize_sample=True,drop_below_threshold=True):
-
+    
+    first_year = year_range[0]
+    last_year = year_range[1]
+    earliest_hour = hour_range[0]
+    latest_hour = hour_range[1]
+    
     # start timer and summarize the initial data
     start = time.time()
     print("Building the analytic sample...")
@@ -327,13 +332,31 @@ def get_analytic_sample(df_accident,df_vehicle,df_person,first_year,last_year,ea
     
     # code driver types as types 1 & 2 in the two-type case, or 1, 2, 3, & 4 in the four-type case
     if mireps==False:
-        analytic_sample['drink_status'] = analytic_sample['drink_status'].replace({0:1, 1:2}) # driver type 1 if non-drinker, driver type 2 if drinker
-        analytic_sample = analytic_sample.rename(columns={'drink_status':'driver_type'})
+        dt_num = 1
+        for dt in driver_types: # loop over driver type definitions
+            dt_bool = True
+            for dtc in dt: # loop over each criterion for each definition
+                if dtc=='sober':
+                    dt_bool = dt_bool & (analytic_sample['drink_status']==0)
+                elif dtc=='drinking':
+                    dt_bool = dt_bool & (analytic_sample['drink_status']==1)
+            analytic_sample.loc[dt_bool,'driver_type'] = dt_num
+            dt_num+=1
     else:
-        for mirep in range(0,mireps):
-            analytic_sample['drink_status'+str(mirep+1)] = analytic_sample['drink_status'+str(mirep+1)].replace({0:1, 1:2}) # driver type 1 if non-drinker, driver type 2 if drinker
-            analytic_sample = analytic_sample.rename(columns={'drink_status'+str(mirep+1):'driver_type'+str(mirep+1)})
+        for mirep in range(0,mireps):           
+            analytic_sample['driver_type'+str(mirep+1)] = numpy.nan
     
+            dt_num = 1
+            for dt in driver_types: # loop over driver type definitions
+                dt_bool = True
+                for dtc in dt: # loop over each criterion for each definition
+                    if dtc=='sober':
+                        dt_bool = dt_bool & (analytic_sample['drink_status'+str(mirep+1)]==0)
+                    elif dtc=='drinking':
+                        dt_bool = dt_bool & (analytic_sample['drink_status'+str(mirep+1)]==1)
+                analytic_sample.loc[dt_bool,'driver_type'+str(mirep+1)] = dt_num
+                dt_num+=1
+        
     end = time.time()
     print("Time to build analytic sample: " + str(end-start))
     return analytic_sample
